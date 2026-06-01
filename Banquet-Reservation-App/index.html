@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,241 +17,794 @@
       --danger: #fee2e2;
       --warning: #ffedd5;
       --success: #dcfce7;
-      --shadow: 0 10px 30px rgba(0,0,0,0.08);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
       --radius: 20px;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
       background: var(--bg);
       color: var(--text);
     }
-    .app { max-width: 1380px; margin: 0 auto; padding: 18px; }
-    .header { display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
-    .title { margin:0; font-size:30px; font-weight:800; }
-    .sub { color:var(--muted); margin-top:6px; font-size:14px; }
-    .layout { display:grid; grid-template-columns:1.2fr 0.95fr; gap:18px; }
-    .card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; }
-    .section-title { font-size:18px; font-weight:800; margin:0 0 12px; }
-    .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:18px; }
-    .stat { border:1px solid var(--line); border-radius:16px; padding:14px; background:#fff; }
-    .stat-label { color:var(--muted); font-size:12px; margin-bottom:6px; }
-    .stat-value { font-size:24px; font-weight:800; }
-    .grid-2,.grid-3,.grid-4 { display:grid; gap:10px; }
-    .grid-2 { grid-template-columns:repeat(2,1fr); }
-    .grid-3 { grid-template-columns:repeat(3,1fr); }
-    .grid-4 { grid-template-columns:repeat(4,1fr); }
-    .field { margin-bottom:12px; }
-    .label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:700; }
-    .input,.select,.textarea { width:100%; border:1px solid var(--line); border-radius:14px; padding:12px 14px; font:inherit; background:#fff; }
-    .textarea { resize:vertical; min-height:90px; }
-    .button-row,.pill-row,.action-row,.badge-row { display:flex; gap:10px; flex-wrap:wrap; }
-    button { appearance:none; border:none; border-radius:14px; padding:12px 14px; font:inherit; font-weight:700; cursor:pointer; transition:.18s ease; }
-    button:hover { transform:translateY(-1px); }
-    .btn-dark { background:var(--dark); color:#fff; }
-    .btn-light { background:#fff; color:var(--text); border:1px solid var(--line); }
-    .btn-danger { background:var(--danger); color:#991b1b; }
-    .btn-warning { background:var(--warning); color:#9a3412; }
-    .category-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
-    .helper { color:var(--muted); font-size:12px; line-height:1.6; margin-top:4px; }
-    .items-area,.list,.task-list,.report-list,.mini-list,.allergy-area { display:grid; gap:10px; }
-    .item-card,.order-card,.task-card,.report-card,.allergy-person-card,.allergy-wrapper { border:1px solid var(--line); border-radius:18px; padding:14px; background:#fff; }
-    .item-head,.order-top,.task-head,.allergy-person-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; margin-bottom:10px; }
-    .item-title { font-size:16px; font-weight:800; }
-    .order-title { font-size:17px; font-weight:800; margin-bottom:4px; }
+
+    .app {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 30px;
+      font-weight: 800;
+    }
+
+    .sub {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.2fr 0.95fr;
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin: 0 0 12px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .today-summary {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .order-details-hidden {
+  display: none;
+}
+.allergy-person-card.collapsed > :not(.allergy-person-head) {
+  display: none;
+}
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 10px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .input,
+    .select,
+    .textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      background: #fff;
+    }
+
+    .textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    .button-row,
+    .pill-row,
+    .action-row,
+    .badge-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .18s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-dark {
+      background: var(--dark);
+      color: #fff;
+    }
+
+    .btn-light {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #991b1b;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: #9a3412;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .helper {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+      margin-top: 4px;
+    }
+
+    .items-area,
+    .list,
+    .task-list,
+    .report-list,
+    .mini-list,
+    .allergy-area {
+      display: grid;
+      gap: 10px;
+    }
+
+    .item-card,
+    .order-card,
+    .task-card,
+    .report-card,
+    .allergy-person-card,
+    .allergy-wrapper {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .item-head,
+    .order-top,
+    .task-head,
+    .allergy-person-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .allergy-person-card.collapsed > :not(.allergy-person-head) {
+      display: none !important;;
+    }
+
+    .allergy-person-head {
+      cursor: pointer;
+    }
+
+    .item-title {
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .item-card.collapsed > :not(.itemihead) {
+      display: none !important;
+    }
+
+    .item-head {
+      cursor: pointer;
+    }
+
+    .order-title {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
     .order-card.task {
-  border:2px solid #f59e0b;
-}
-    .meta { color:var(--muted); font-size:13px; line-height:1.55; }
-    .badge { display:inline-flex; align-items:center; border-radius:999px; background:var(--soft); padding:6px 10px; font-size:12px; font-weight:700; }
-    .mini-item { border:1px solid var(--line); border-radius:14px; padding:10px 12px; background:#fafafa; }
-    .empty { padding:24px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:18px; background:#fafafa; }
-    .hidden { display:none !important; }
-    .pill { padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:#fff; font-size:13px; font-weight:700; cursor:pointer; }
-    .pill.active { background:var(--dark); color:#fff; border-color:var(--dark); }
-    .check-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-    .check-pill { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:13px; font-weight:700; }
-    .allergy-person-title,.task-title,.report-title { font-size:15px; font-weight:800; }
-    .family-box { border:1px dashed var(--line); border-radius:12px; padding:10px; background:#fff; }
-    .family-title { font-size:12px; font-weight:800; color:var(--muted); margin-bottom:8px; }
-    .family-list { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-    .family-item { border:1px solid var(--line); border-radius:12px; padding:8px; background:#fafafa; }
-    .family-item label { display:block; font-size:12px; margin-bottom:4px; }
-    .allergy-summary { margin-top:6px; color:#9a3412; font-size:12px; font-weight:700; }
-    .task-check { display:flex; gap:10px; align-items:flex-start; border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:#fafafa; margin-top:8px; }
-    .task-check.done { opacity:0.55; text-decoration:line-through; }
-    .task-check input { margin-top:4px; transform:scale(1.15); }
+      border: 2px solid #f59e0b;
+    }
 
-    .modal { position:fixed; inset:0; background:rgba(17,24,39,0.5); display:flex; align-items:center; justify-content:center; padding:20px; z-index:1000; }
-    .modal-panel { width:min(1150px,100%); max-height:90vh; overflow:auto; background:#fff; border-radius:22px; box-shadow:0 20px 50px rgba(0,0,0,0.18); padding:18px; }
-    .modal-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
-    .print-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
-    .allergy-card {
-  min-height: 165px;
-  height: auto;
-  overflow: visible;
-}
-    .allergy-head { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
-    .allergy-title { font-size:14px; font-weight:800; line-height:1.25; }
-    .allergy-sub { font-size:10px; color:#4b5563; line-height:1.35; }
-    .allergy-label { font-size:9px; font-weight:800; color:#6b7280; letter-spacing:.03em; }
-    .allergy-box { border:1px solid #d1d5db; border-radius:8px; padding:6px 8px; background:#fafafa; font-size:11px; line-height:1.35; white-space:pre-wrap; min-height:34px; overflow:hidden; }
-    .allergy-card.compact {padding: 10px; gap: 6px;}
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
 
-.allergy-card.compact {
-  padding: 10px;
-  gap: 6px;
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      background: var(--soft);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .mini-item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: #fafafa;
+    }
+   .order-table-wrap {
+  overflow-x: auto;
 }
 
-.compact-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.compact-main {
-  min-width: 0;
-  flex: 1;
-}
-
-.compact-title {
-  font-size: 12px;
-  line-height: 1.2;
-  margin: 0;
-  white-space: normal;
-  overflow: visible;
-  word-break: break-word;
-}
-
-.compact-sub {
-  font-size: 10px;
-  line-height: 1.2;
-  margin-top: 2px;
-  color: #4b5563;
-  white-space: normal;
-  overflow: visible;
-  word-break: break-word;
-}
-
-.person-badge {
-  width: 54px;
-  height: 54px;
-  border-radius: 999px;
-  background: #f3f4f6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 13px;
-  font-weight: 800;
-  color: #111827;
-  flex-shrink: 0;
 }
 
-.compact-line {
-  font-size: 10px;
-  line-height: 1.3;
-  white-space: normal;
-  overflow: visible;
-  word-break: break-word;
-}
-.view-hidden {
-
-  display: none !important;
-
-}
-.date-range-row {
-  display: grid;
-  grid-template-columns: minmax(0,1fr) auto minmax(0,1fr) auto;
-  gap: 8px;
-  align-items: end;
-  margin-bottom: 12px;
+.order-table th,
+.order-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 6px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
 }
 
-.date-range-row .field {
-  margin-bottom: 0;
-}
-
-.date-range-sep {
-  text-align: center;
-  font-weight: 700;
+.order-table th {
   color: var(--muted);
-  padding-bottom: 12px;
+  font-size: 12px;
 }
 
-@media (max-width:1024px) {
-  .layout,
-  .grid-3,
-  .grid-2 {
-    grid-template-columns: 1fr;
-  }
-
-  .stats {
-    grid-template-columns: repeat(2,1fr);
-  }
-
-  .category-grid,
-  .grid-4,
-  .check-grid,
-  .family-list,
-  .print-grid {
-    grid-template-columns: repeat(2,1fr);
-  }
-
-  .date-range-row {
-    grid-template-columns: 1fr;
-  }
-
-  .date-range-sep {
-    display: block;
-    text-align: center;
-    padding: 0;
-  }
+.order-table button {
+  padding: 6px 8px;
+  font-size: 12px;
 }
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 18px;
+      background: #fafafa;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .pill.active {
+      background: var(--dark);
+      color: #fff;
+      border-color: var(--dark);
+    }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .check-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .allergy-person-title,
+    .task-title,
+    .report-title {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .family-box {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .family-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .family-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .family-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px;
+      background: #fafafa;
+    }
+
+    .family-item label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .allergy-summary {
+      margin-top: 6px;
+      color: #9a3412;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .task-check {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fafafa;
+      margin-top: 8px;
+    }
+
+    .task-check.done {
+      opacity: 0.55;
+      text-decoration: line-through;
+    }
+
+    .task-check input {
+      margin-top: 4px;
+      transform: scale(1.15);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+
+    .modal-panel {
+      width: min(1150px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 22px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+      padding: 18px;
+    }
+
+    .modal-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .print-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .allergy-card {
+      min-height: 165px;
+      height: auto;
+      overflow: visible;
+    }
+
+    .allergy-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .allergy-title {
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .allergy-sub {
+      font-size: 10px;
+      color: #4b5563;
+      line-height: 1.35;
+    }
+
+    .allergy-label {
+      font-size: 9px;
+      font-weight: 800;
+      color: #6b7280;
+      letter-spacing: .03em;
+    }
+
+    .allergy-box {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: #fafafa;
+      font-size: 11px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      min-height: 34px;
+      overflow: hidden;
+    }
+
+    .allergy-card.compact {
+      padding: 10px;
+      gap: 6px;
+    }
+
+    .allergy-card.compact {
+      padding: 10px;
+      gap: 6px;
+    }
+
+    .compact-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .compact-main {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .compact-title {
+      font-size: 12px;
+      line-height: 1.2;
+      margin: 0;
+      white-space: normal;
+      overflow: visible;
+      word-break: break-word;
+    }
+
+    .compact-sub {
+      font-size: 10px;
+      line-height: 1.2;
+      margin-top: 2px;
+      color: #4b5563;
+      white-space: normal;
+      overflow: visible;
+      word-break: break-word;
+    }
+
+    .person-badge {
+      width: 54px;
+      height: 54px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #111827;
+      flex-shrink: 0;
+    }
+
+    .compact-line {
+      font-size: 10px;
+      line-height: 1.3;
+      white-space: normal;
+      overflow: visible;
+      word-break: break-word;
+    }
+
+    .view-hidden {
+
+      display: none !important;
+
+    }
+
+    .date-range-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    .date-range-row .field {
+      margin-bottom: 0;
+    }
+
+    .date-range-sep {
+      text-align: center;
+      font-weight: 700;
+      color: var(--muted);
+      padding-bottom: 12px;
+    }
+
+    @media (max-width:1024px) {
+
+      .layout,
+      .grid-3,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .category-grid,
+      .grid-4,
+      .check-grid,
+      .family-list,
+      .print-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .date-range-row {
+        grid-template-columns: 1fr;
+      }
+
+      .date-range-sep {
+        display: block;
+        text-align: center;
+        padding: 0;
+      }
+    }
 
     @media print {
-      @page { size: A4 portrait; margin: 8mm; }
-      html, body { width:210mm; height:297mm; margin:0; padding:0; background:#fff; }
-      body * { visibility:hidden; }
-      #printModal, #printModal * { visibility:visible; }
-      #printModal { position:absolute; inset:0; background:#fff; padding:0; margin:0; }
-      #printModal .modal-panel { width:100%; max-height:none; overflow:visible; box-shadow:none; border-radius:0; padding:0; margin:0; }
-      #printModal .modal-toolbar { display:none !important; }
-      #printCardsArea.print-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8mm; width:100%; margin:0; padding:0; }
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+
+      html,
+      body {
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+      }
+
+      body * {
+        visibility: hidden;
+      }
+
+      #printModal,
+      #printModal * {
+        visibility: visible;
+      }
+
+      #printModal {
+        position: absolute;
+        inset: 0;
+        background: #fff;
+        padding: 0;
+        margin: 0;
+      }
+
+      #printModal .modal-panel {
+        width: 100%;
+        max-height: none;
+        overflow: visible;
+        box-shadow: none;
+        border-radius: 0;
+        padding: 0;
+        margin: 0;
+      }
+
+      #printModal .modal-toolbar {
+        display: none !important;
+      }
+
+      #printCardsArea.print-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8mm;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
       .allergy-card {
-    min-height: 80mm;
-    height: auto;
-    overflow: visible;
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-      .allergy-title { font-size:11pt; line-height:1.2; }
-      .allergy-sub { font-size:8pt; line-height:1.25; }
-      .allergy-label { font-size:7pt; line-height:1.2; }
-      .allergy-box { font-size:8pt; line-height:1.25; min-height:10mm; max-height:15mm; overflow:hidden; border-radius:2mm; }
-.compact-title {
-  font-size: 9pt;
-}
+        min-height: 80mm;
+        height: auto;
+        overflow: visible;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
 
-.compact-sub {
-  font-size: 7.5pt;
-}
+      .allergy-title {
+        font-size: 11pt;
+        line-height: 1.2;
+      }
 
-.person-badge {
-  width: 13mm;
-  height: 13mm;
-  font-size: 7.5pt;
-}
-.compact-line {
-  font-size: 7.5pt;
-  line-height: 1.15;
-}
+      .allergy-sub {
+        font-size: 8pt;
+        line-height: 1.25;
+      }
+
+      .allergy-label {
+        font-size: 7pt;
+        line-height: 1.2;
+      }
+
+      .allergy-box {
+        font-size: 8pt;
+        line-height: 1.25;
+        min-height: 10mm;
+        max-height: 15mm;
+        overflow: hidden;
+        border-radius: 2mm;
+      }
+
+      .compact-title {
+        font-size: 9pt;
+      }
+
+      .compact-sub {
+        font-size: 7.5pt;
+      }
+
+      .person-badge {
+        width: 13mm;
+        height: 13mm;
+        font-size: 7.5pt;
+      }
+
+      .compact-line {
+        font-size: 7.5pt;
+        line-height: 1.15;
+      }
     }
+
+    .section-box {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .section-content {
+      padding: 14px;
+    }
+
+    .section-content.hidden {
+      display: none;
+    }
+   .order-detail-panel {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  background: #fff;
+}
+
+.order-detail-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.order-detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
   </style>
 </head>
+
 <body>
   <div class="app">
     <div class="header">
@@ -267,13 +821,16 @@
         <button class="btn-light" id="monthlyReportBtn">月末集計</button>
         <button class="btn-light" id="resetFormBtn">入力リセット</button>
         <button class="btn-danger" id="clearAllBtn">全件削除</button>
+        <button class="btn-light toggle-detail-btn">
+  詳細
+</button>
       </div>
     </div>
-<div class="pill-row" id="viewToggle">
-  <button class="pill active" data-view="form">入力</button>
-  <button class="pill" data-view="list">一覧</button>
-</div>
-    <div class="stats" id="stats"></div>
+    <div class="pill-row" id="viewToggle">
+      <button class="pill active" data-view="form">入力</button>
+      <button class="pill" data-view="list">一覧</button>
+    </div>
+    <div class="today-summary" id="todaySummary"></div>
 
     <div class="layout">
       <section class="card">
@@ -285,46 +842,55 @@
         </div>
 
         <form id="orderForm" novalidate>
-          <div class="grid-3">
-            <div class="field">
-              <label class="label">日付</label>
-              <input class="input" type="date" id="orderDate" />
-            </div>
-            <div class="field">
-              <label class="label">時間</label>
-              <input class="input" type="time" id="orderTime" />
-            </div>
-            <div class="field">
-              <label class="label" id="nameLabel">宴会名 / 名前</label>
-              <input class="input" id="clientName" placeholder="例：田中様宴会 / 新郎新婦名 / 記念日名義" />
-            </div>
-          </div>
+          <div class="section-box">
 
-          <div class="grid-3">
-            <div class="field">
-              <label class="label">会場 / 受け渡し場所</label>
-              <input class="input" id="venue" placeholder="例：鳳凰の間 / レストラン / フロント" list="savedVenueList" />
+            <div class="section-header">
+              基本情報
             </div>
-            <div class="field" id="guestCountWrap">
-              <label class="label">人数</label>
-              <input class="input" type="number" id="guestCount" min="0" placeholder="例：50" />
-            </div>
-            <div class="field" id="coursePriceWrap">
-              <label class="label">コース料金</label>
-              <input class="input" type="number" id="coursePrice" min="0" placeholder="例：8000" />
-            </div>
-          </div>
 
-          <div class="grid-2">
-            <div class="field">
-              <label class="label">ステータス</label>
-              <select class="select" id="status">
-                <option>未確認</option>
-                <option>製造待ち</option>
-                <option>製造中</option>
-                <option>完成</option>
-                <option>納品済み</option>
-              </select>
+            <div class="section-content" id="basicInfoSection">
+              <div class="grid-3">
+                <div class="field">
+                  <label class="label">日付</label>
+                  <input class="input" type="date" id="orderDate" />
+                </div>
+                <div class="field">
+                  <label class="label">時間</label>
+                  <input class="input" type="time" id="orderTime" />
+                </div>
+                <div class="field">
+                  <label class="label" id="nameLabel">宴会名 / 名前</label>
+                  <input class="input" id="clientName" placeholder="例：田中様宴会 / 新郎新婦名 / 記念日名義" />
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="field">
+                  <label class="label">会場 / 受け渡し場所</label>
+                  <input class="input" id="venue" placeholder="例：鳳凰の間 / レストラン / フロント" list="savedVenueList" />
+                </div>
+                <div class="field" id="guestCountWrap">
+                  <label class="label">人数</label>
+                  <input class="input" type="number" id="guestCount" min="0" placeholder="例：50" />
+                </div>
+                <div class="field" id="coursePriceWrap">
+                  <label class="label">コース料金</label>
+                  <input class="input" type="number" id="coursePrice" min="0" placeholder="例：8000" />
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label class="label">ステータス</label>
+                  <select class="select" id="status">
+                    <option>未確認</option>
+                    <option>製造待ち</option>
+                    <option>製造中</option>
+                    <option>完成</option>
+                    <option>納品済み</option>
+                  </select>
+                </div>
+              </div>
             </div>
             <div class="field" id="afternoonTeaWrap">
               <label class="label">アフタヌーンティー区分</label>
@@ -375,21 +941,21 @@
       <section class="card">
         <h2 class="section-title">一覧</h2>
         <div class="pill-row" id="filterPills"></div>
-<div class="date-range-row">
-  <div class="field">
-    <label class="label">開始日</label>
-    <input type="date" id="fromDate" class="input" />
-  </div>
+        <div class="date-range-row">
+          <div class="field">
+            <label class="label">開始日</label>
+            <input type="date" id="fromDate" class="input" />
+          </div>
 
-  <div class="date-range-sep">〜</div>
+          <div class="date-range-sep">〜</div>
 
-  <div class="field">
-    <label class="label">終了日</label>
-    <input type="date" id="toDate" class="input" />
-  </div>
+          <div class="field">
+            <label class="label">終了日</label>
+            <input type="date" id="toDate" class="input" />
+          </div>
 
-  <button class="btn-light" id="clearDateFilter" type="button">クリア</button>
-</div>
+          <button class="btn-light" id="clearDateFilter" type="button">クリア</button>
+        </div>
         <div class="grid-2" style="margin-bottom:12px;">
           <input class="input" id="searchInput" placeholder="名前・会場・商品名・備考で検索" />
           <select class="select" id="sortSelect">
@@ -399,6 +965,7 @@
           </select>
         </div>
         <div class="list" id="ordersList"></div>
+        <div class="order-detail-panel hidden" id="orderDetailPnel"></div>
       </section>
     </div>
   </div>
@@ -537,7 +1104,8 @@
         <label class="label">オプション</label>
         <div class="check-grid">
           <label class="check-pill"><input type="checkbox" value="イチゴトッピング" class="option-check" />イチゴトッピング</label>
-          <label class="check-pill"><input type="checkbox" value="ミックスベリートッピング" class="option-check" />ミックスベリートッピング</label>
+          <label class="check-pill"><input type="checkbox" value="ミックスベリートッピング"
+              class="option-check" />ミックスベリートッピング</label>
           <label class="check-pill"><input type="checkbox" value="フルーツ盛り" class="option-check" />フルーツ盛り</label>
           <label class="check-pill"><input type="checkbox" value="特注" class="option-check" />特注</label>
         </div>
@@ -592,13 +1160,41 @@
       <div class="family-box">
         <div class="family-title">同科確認</div>
         <div class="family-list">
-          <div class="family-item"><div>桃</div><label><input type="radio" class="family-status" value="未確認" checked /> 未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input type="radio" class="family-status" value="NG" /> NG</label></div>
-          <div class="family-item"><div>りんご</div><label><input type="radio" class="family-status" value="未確認" checked /> 未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input type="radio" class="family-status" value="NG" /> NG</label></div>
-          <div class="family-item"><div>なし</div><label><input type="radio" class="family-status" value="未確認" checked /> 未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input type="radio" class="family-status" value="NG" /> NG</label></div>
-          <div class="family-item"><div>さくらんぼ</div><label><input type="radio" class="family-status" value="未確認" checked /> 未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input type="radio" class="family-status" value="NG" /> NG</label></div>
-          <div class="family-item"><div>びわ</div><label><input type="radio" class="family-status" value="未確認" checked /> 未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input type="radio" class="family-status" value="NG" /> NG</label></div>
-          <div class="family-item"><div>あんず</div><label><input type="radio" class="family-status" value="未確認" checked /> 未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input type="radio" class="family-status" value="NG" /> NG</label></div>
-          <div class="family-item"><div>いちご</div><label><input type="radio" class="family-status" value="未確認" checked /> 未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input type="radio" class="family-status" value="NG" /> NG</label></div>
+          <div class="family-item">
+            <div>桃</div><label><input type="radio" class="family-status" value="未確認" checked /> 未確認</label><label><input
+                type="radio" class="family-status" value="可" /> 可</label><label><input type="radio"
+                class="family-status" value="NG" /> NG</label>
+          </div>
+          <div class="family-item">
+            <div>りんご</div><label><input type="radio" class="family-status" value="未確認" checked />
+              未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input
+                type="radio" class="family-status" value="NG" /> NG</label>
+          </div>
+          <div class="family-item">
+            <div>なし</div><label><input type="radio" class="family-status" value="未確認" checked />
+              未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input
+                type="radio" class="family-status" value="NG" /> NG</label>
+          </div>
+          <div class="family-item">
+            <div>さくらんぼ</div><label><input type="radio" class="family-status" value="未確認" checked />
+              未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input
+                type="radio" class="family-status" value="NG" /> NG</label>
+          </div>
+          <div class="family-item">
+            <div>びわ</div><label><input type="radio" class="family-status" value="未確認" checked />
+              未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input
+                type="radio" class="family-status" value="NG" /> NG</label>
+          </div>
+          <div class="family-item">
+            <div>あんず</div><label><input type="radio" class="family-status" value="未確認" checked />
+              未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input
+                type="radio" class="family-status" value="NG" /> NG</label>
+          </div>
+          <div class="family-item">
+            <div>いちご</div><label><input type="radio" class="family-status" value="未確認" checked />
+              未確認</label><label><input type="radio" class="family-status" value="可" /> 可</label><label><input
+                type="radio" class="family-status" value="NG" /> NG</label>
+          </div>
         </div>
       </div>
 
@@ -633,10 +1229,10 @@
   <script>
     const STORAGE_KEY = 'banquet_reservation_v7';
     const VENUE_MEMORY_KEY = 'banquet_reservation_saved_venues_v1';
-    
+
     const TASK_CHECK_KEY = 'banquet_reservation_task_checks_v1';
     const categories = ['宴会', '婚礼', 'アニバーサリー', 'アフタヌーンティー'];
-const filters = ['全件', '今日', '明日', '今週', '未完了', '納品済み', 'タスクあり', ...categories];
+    const filters = ['全件', '今日', '明日', '今週', '未完了', '納品済み', 'タスクあり', ...categories];
     const statusFlow = ['未確認', '製造待ち', '製造中', '完成', '納品済み'];
     const presetOptions = ['イチゴトッピング', 'ミックスベリートッピング', 'フルーツ盛り', '特注'];
     const roseFamily = ['桃', 'りんご', 'なし', 'さくらんぼ', 'びわ', 'あんず', 'いちご'];
@@ -679,166 +1275,168 @@ const filters = ['全件', '今日', '明日', '今週', '未完了', '納品済
     let editingId = null;
     const fromDate = document.getElementById('fromDate');
 
-const toDate = document.getElementById('toDate');
+    const toDate = document.getElementById('toDate');
 
     const els = {
-      categoryGrid: document.getElementById('categoryGrid'), orderDate: document.getElementById('orderDate'), orderTime: document.getElementById('orderTime'), clientName: document.getElementById('clientName'), venue: document.getElementById('venue'), guestCount: document.getElementById('guestCount'), coursePrice: document.getElementById('coursePrice'), status: document.getElementById('status'), orderNotes: document.getElementById('orderNotes'), afternoonTeaType: document.getElementById('afternoonTeaType'), guestCountWrap: document.getElementById('guestCountWrap'), coursePriceWrap: document.getElementById('coursePriceWrap'), afternoonTeaWrap: document.getElementById('afternoonTeaWrap'), nameLabel: document.getElementById('nameLabel'), addMasterAllergyBtn: document.getElementById('addMasterAllergyBtn'), masterAllergyArea: document.getElementById('masterAllergyArea'), itemsArea: document.getElementById('itemsArea'), addItemBtn: document.getElementById('addItemBtn'), addDessertBtn: document.getElementById('addDessertBtn'), addCakeBtn: document.getElementById('addCakeBtn'), addGiftBtn: document.getElementById('addGiftBtn'), orderForm: document.getElementById('orderForm'), submitBtn: document.getElementById('submitBtn'), stats: document.getElementById('stats'), filterPills: document.getElementById('filterPills'), searchInput: document.getElementById('searchInput'), sortSelect: document.getElementById('sortSelect'), ordersList: document.getElementById('ordersList'), importJsonInput: document.getElementById('importJsonInput'), importJsonBtn: document.getElementById('importJsonBtn'), exportBtn: document.getElementById('exportBtn'), printCardsBtn: document.getElementById('printCardsBtn'), taskModalBtn: document.getElementById('taskModalBtn'), monthlyReportBtn: document.getElementById('monthlyReportBtn'), resetFormBtn: document.getElementById('resetFormBtn'), clearAllBtn: document.getElementById('clearAllBtn'), itemTemplate: document.getElementById('itemTemplate'), allergyPersonTemplate: document.getElementById('allergyPersonTemplate'), savedVenueList: document.getElementById('savedVenueList'), printModal: document.getElementById('printModal'), printCardsArea: document.getElementById('printCardsArea'), runPrintBtn: document.getElementById('runPrintBtn'), closePrintBtn: document.getElementById('closePrintBtn'), taskModal: document.getElementById('taskModal'), taskDateFilter: document.getElementById('taskDateFilter'), taskCategoryFilter: document.getElementById('taskCategoryFilter'), taskTypeFilter: document.getElementById('taskTypeFilter'), taskListArea: document.getElementById('taskListArea'), closeTaskBtn: document.getElementById('closeTaskBtn'), reportModal: document.getElementById('reportModal'), reportMonthInput: document.getElementById('reportMonthInput'), runReportBtn: document.getElementById('runReportBtn'), closeReportBtn: document.getElementById('closeReportBtn'), reportSummary: document.getElementById('reportSummary')
+      categoryGrid: document.getElementById('categoryGrid'), orderDate: document.getElementById('orderDate'), orderTime: document.getElementById('orderTime'), clientName: document.getElementById('clientName'), venue: document.getElementById('venue'), guestCount: document.getElementById('guestCount'), coursePrice: document.getElementById('coursePrice'), status: document.getElementById('status'), orderNotes: document.getElementById('orderNotes'), afternoonTeaType: document.getElementById('afternoonTeaType'), guestCountWrap: document.getElementById('guestCountWrap'), coursePriceWrap: document.getElementById('coursePriceWrap'), afternoonTeaWrap: document.getElementById('afternoonTeaWrap'), nameLabel: document.getElementById('nameLabel'), addMasterAllergyBtn: document.getElementById('addMasterAllergyBtn'), masterAllergyArea: document.getElementById('masterAllergyArea'), itemsArea: document.getElementById('itemsArea'), addItemBtn: document.getElementById('addItemBtn'), addDessertBtn: document.getElementById('addDessertBtn'), addCakeBtn: document.getElementById('addCakeBtn'), addGiftBtn: document.getElementById('addGiftBtn'), orderForm: document.getElementById('orderForm'), submitBtn: document.getElementById('submitBtn'), stats: document.getElementById('stats'), filterPills: document.getElementById('filterPills'), searchInput: document.getElementById('searchInput'), sortSelect: document.getElementById('sortSelect'), ordersList: document.getElementById('ordersList'), importJsonInput: document.getElementById('importJsonInput'), importJsonBtn: document.getElementById('importJsonBtn'), exportBtn: document.getElementById('exportBtn'), printCardsBtn: document.getElementById('printCardsBtn'), taskModalBtn: document.getElementById('taskModalBtn'), monthlyReportBtn: document.getElementById('monthlyReportBtn'), resetFormBtn: document.getElementById('resetFormBtn'), clearAllBtn: document.getElementById('clearAllBtn'), itemTemplate: document.getElementById('itemTemplate'), allergyPersonTemplate: document.getElementById('allergyPersonTemplate'), savedVenueList: document.getElementById('savedVenueList'), printModal: document.getElementById('printModal'), printCardsArea: document.getElementById('printCardsArea'), runPrintBtn: document.getElementById('runPrintBtn'), closePrintBtn: document.getElementById('closePrintBtn'), taskModal: document.getElementById('taskModal'), taskDateFilter: document.getElementById('taskDateFilter'), taskCategoryFilter: document.getElementById('taskCategoryFilter'), taskTypeFilter: document.getElementById('taskTypeFilter'), taskListArea: document.getElementById('taskListArea'), closeTaskBtn: document.getElementById('closeTaskBtn'), reportModal: document.getElementById('reportModal'), reportMonthInput: document.getElementById('reportMonthInput'), runReportBtn: document.getElementById('runReportBtn'), closeReportBtn: document.getElementById('closeReportBtn'), reportSummary: document.getElementById('reportSummary'),
+      allergyPersonTemplate:
+      document.getElementById('allergyPersonTenplate'),orderDetailPanel: document.getElementById('orderDetailPanel'),
     };
-const viewToggle = document.getElementById('viewToggle');
-const formSection = document.querySelector('.layout > section:first-child');
-const listSection = document.querySelector('.layout > section:last-child');
-const clearDateFilterBtn = document.getElementById('clearDateFilter');
-    function todayStr(offset = 0) { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + offset); return d.toISOString().slice(0,10); }
-    function currentMonthStr() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`; }
-    function isThisWeek(dateStr) { if (!dateStr) return false; const today = new Date(); today.setHours(0,0,0,0); const target = new Date(dateStr + 'T00:00:00'); const diff = (target - today) / 86400000; return diff >= 0 && diff <= 6; }
-    function escapeHtml(str='') { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#039;'); }
-function migrateLegacyOrder(order) {
-  const people = [];
+    const viewToggle = document.getElementById('viewToggle');
+    const formSection = document.querySelector('.layout > section:first-child');
+    const listSection = document.querySelector('.layout > section:last-child');
+    const clearDateFilterBtn = document.getElementById('clearDateFilter');
+    function todayStr(offset = 0) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); }
+    function currentMonthStr() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; }
+    function isThisWeek(dateStr) { if (!dateStr) return false; const today = new Date(); today.setHours(0, 0, 0, 0); const target = new Date(dateStr + 'T00:00:00'); const diff = (target - today) / 86400000; return diff >= 0 && diff <= 6; }
+    function escapeHtml(str = '') { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#039;'); }
+    function migrateLegacyOrder(order) {
+      const people = [];
 
-  // 新形式
-  if (order.allergyMaster && Array.isArray(order.allergyMaster.people)) {
-    order.allergyMaster.people.forEach((p, idx) => {
-      people.push({
-        personName: p.personName || p.name || `${idx + 1}人目`,
-        primary: Array.isArray(p.primary) ? p.primary : [],
-        familyChecks: p.familyChecks || {},
-        finalNg: p.finalNg || '',
-        method: p.method || '',
-        count: Number(p.count || 1),
-        note: p.note || '',
-        sourceItem: p.sourceItem || ''
-      });
-    });
-  }
-
-  // 旧形式A: order直下に allergyPeople
-  if (Array.isArray(order.allergyPeople)) {
-    order.allergyPeople.forEach((p, idx) => {
-      people.push({
-        personName: p.personName || p.name || `${idx + 1}人目`,
-        primary: Array.isArray(p.primary) ? p.primary : [],
-        familyChecks: p.familyChecks || {},
-        finalNg: p.finalNg || '',
-        method: p.method || '',
-        count: Number(p.count || 1),
-        note: p.note || '',
-        sourceItem: ''
-      });
-    });
-  }
-  // 旧形式B: itemごとに allergyPeople
-  (order.items || []).forEach((item) => {
-    (item.allergyPeople || []).forEach((p, idx) => {
-      people.push({
-        personName: p.personName || p.name || `${idx + 1}人目`,
-        primary: Array.isArray(p.primary) ? p.primary : [],
-        familyChecks: p.familyChecks || {},
-        finalNg: p.finalNg || '',
-        method: p.method || '',
-        count: Number(p.count || 1),
-        note: p.note || '',
-        sourceItem: item.name || item.type || ''
-      });
-    });
-  });
-
-  return {
-    ...order,
-    allergyMaster: {
-      people
-    }
-  };
-}
-function normalizeImportedItem(item = {}) {
-  return {
-    type: item.type || 'その他',
-    name: item.name || '',
-    quantity: Number(item.quantity || 1),
-    cost: Number(item.cost || 0),
-    size: item.size || '',
-    squareSize: item.squareSize || '',
-    multiSize: item.multiSize || '',
-    plateMessage: item.plateMessage || '',
-    dessertCostNote: item.dessertCostNote || '',
-    options: Array.isArray(item.options) ? item.options : [],
-    notes: item.notes || '',
-    allergyPeople: Array.isArray(item.allergyPeople) ? item.allergyPeople : []
-  };
-}
-function normalizeImportedOrder(order = {}) {
-  const rawItems = Array.isArray(order.items) ? order.items.map(normalizeImportedItem) : [];
-
-  const migrated = migrateLegacyOrder({
-    ...order,
-    items: rawItems,
-    allergyMaster: order.allergyMaster || null
-  });
-
-  return {
-    id: migrated.id || `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    createdAt: Number(migrated.createdAt || Date.now()),
-    category: categories.includes(migrated.category) ? migrated.category : '宴会',
-    date: migrated.date || '',
-    time: migrated.time || '',
-    clientName: migrated.clientName || '',
-    venue: migrated.venue || '',
-    guestCount: Number(migrated.guestCount || 0),
-    coursePrice: Number(migrated.coursePrice || 0),
-    status: statusFlow.includes(migrated.status) ? migrated.status : '未確認',
-    afternoonTeaType: migrated.afternoonTeaType || '',
-    orderNotes: migrated.orderNotes || '',
-    allergyMaster: migrated.allergyMaster || { people: [] },
-    items: rawItems.map(item => {
-      const { allergyPeople, ...rest } = item;
-      return rest;
-    })
-  };
-}
-
-function loadOrders() {
-  const candidateKeys = [
-    'banquet_reservation_v7',
-    'banquet_reservation_v6',
-    'banquet_reservation_v5',
-    'banquet_reservation_v4'
-  ];
-
-  for (const key of candidateKeys) {
-    try {
-      const raw = JSON.parse(localStorage.getItem(key) || '[]');
-
-      if (Array.isArray(raw) && raw.length) {
-        const normalized = raw.map(normalizeImportedOrder);
-
-        if (key !== STORAGE_KEY) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-        }
-
-        return normalized;
+      // 新形式
+      if (order.allergyMaster && Array.isArray(order.allergyMaster.people)) {
+        order.allergyMaster.people.forEach((p, idx) => {
+          people.push({
+            personName: p.personName || p.name || `${idx + 1}人目`,
+            primary: Array.isArray(p.primary) ? p.primary : [],
+            familyChecks: p.familyChecks || {},
+            finalNg: p.finalNg || '',
+            method: p.method || '',
+            count: Number(p.count || 1),
+            note: p.note || '',
+            sourceItem: p.sourceItem || ''
+          });
+        });
       }
-    } catch (e) {
-      console.error(`load failed: ${key}`, e);
-    }
-  }
 
-  return [];
-}
+      // 旧形式A: order直下に allergyPeople
+      if (Array.isArray(order.allergyPeople)) {
+        order.allergyPeople.forEach((p, idx) => {
+          people.push({
+            personName: p.personName || p.name || `${idx + 1}人目`,
+            primary: Array.isArray(p.primary) ? p.primary : [],
+            familyChecks: p.familyChecks || {},
+            finalNg: p.finalNg || '',
+            method: p.method || '',
+            count: Number(p.count || 1),
+            note: p.note || '',
+            sourceItem: ''
+          });
+        });
+      }
+      // 旧形式B: itemごとに allergyPeople
+      (order.items || []).forEach((item) => {
+        (item.allergyPeople || []).forEach((p, idx) => {
+          people.push({
+            personName: p.personName || p.name || `${idx + 1}人目`,
+            primary: Array.isArray(p.primary) ? p.primary : [],
+            familyChecks: p.familyChecks || {},
+            finalNg: p.finalNg || '',
+            method: p.method || '',
+            count: Number(p.count || 1),
+            note: p.note || '',
+            sourceItem: item.name || item.type || ''
+          });
+        });
+      });
+
+      return {
+        ...order,
+        allergyMaster: {
+          people
+        }
+      };
+    }
+    function normalizeImportedItem(item = {}) {
+      return {
+        type: item.type || 'その他',
+        name: item.name || '',
+        quantity: Number(item.quantity || 1),
+        cost: Number(item.cost || 0),
+        size: item.size || '',
+        squareSize: item.squareSize || '',
+        multiSize: item.multiSize || '',
+        plateMessage: item.plateMessage || '',
+        dessertCostNote: item.dessertCostNote || '',
+        options: Array.isArray(item.options) ? item.options : [],
+        notes: item.notes || '',
+        allergyPeople: Array.isArray(item.allergyPeople) ? item.allergyPeople : []
+      };
+    }
+    function normalizeImportedOrder(order = {}) {
+      const rawItems = Array.isArray(order.items) ? order.items.map(normalizeImportedItem) : [];
+
+      const migrated = migrateLegacyOrder({
+        ...order,
+        items: rawItems,
+        allergyMaster: order.allergyMaster || null
+      });
+
+      return {
+        id: migrated.id || `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        createdAt: Number(migrated.createdAt || Date.now()),
+        category: categories.includes(migrated.category) ? migrated.category : '宴会',
+        date: migrated.date || '',
+        time: migrated.time || '',
+        clientName: migrated.clientName || '',
+        venue: migrated.venue || '',
+        guestCount: Number(migrated.guestCount || 0),
+        coursePrice: Number(migrated.coursePrice || 0),
+        status: statusFlow.includes(migrated.status) ? migrated.status : '未確認',
+        afternoonTeaType: migrated.afternoonTeaType || '',
+        orderNotes: migrated.orderNotes || '',
+        allergyMaster: migrated.allergyMaster || { people: [] },
+        items: rawItems.map(item => {
+          const { allergyPeople, ...rest } = item;
+          return rest;
+        })
+      };
+    }
+
+    function loadOrders() {
+      const candidateKeys = [
+        'banquet_reservation_v7',
+        'banquet_reservation_v6',
+        'banquet_reservation_v5',
+        'banquet_reservation_v4'
+      ];
+
+      for (const key of candidateKeys) {
+        try {
+          const raw = JSON.parse(localStorage.getItem(key) || '[]');
+
+          if (Array.isArray(raw) && raw.length) {
+            const normalized = raw.map(normalizeImportedOrder);
+
+            if (key !== STORAGE_KEY) {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+            }
+
+            return normalized;
+          }
+        } catch (e) {
+          console.error(`load failed: ${key}`, e);
+        }
+      }
+
+      return [];
+    }
     function saveOrders(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
     function loadTaskChecks() { try { return JSON.parse(localStorage.getItem(TASK_CHECK_KEY)) || {}; } catch { return {}; } }
     function saveTaskChecks(data) { localStorage.setItem(TASK_CHECK_KEY, JSON.stringify(data)); }
     function loadSavedVenues() { try { return JSON.parse(localStorage.getItem(VENUE_MEMORY_KEY)) || []; } catch { return []; } }
     function renderSavedVenues() { const venues = loadSavedVenues(); els.savedVenueList.innerHTML = venues.map(v => `<option value="${escapeHtml(v)}"></option>`).join(''); }
-    function rebuildVenueMemoryFromOrders(orders) { const venueSet = new Set(loadSavedVenues()); (orders || []).forEach(order => { const v = (order.venue || '').trim(); if (v) venueSet.add(v); }); localStorage.setItem(VENUE_MEMORY_KEY, JSON.stringify([...venueSet].sort((a,b)=>a.localeCompare(b,'ja')))); renderSavedVenues(); }
-    function saveVenueMemory(venue) { const v = (venue || '').trim(); if (!v) return; const list = loadSavedVenues(); if (!list.includes(v)) { list.push(v); list.sort((a,b)=>a.localeCompare(b,'ja')); localStorage.setItem(VENUE_MEMORY_KEY, JSON.stringify(list)); } renderSavedVenues(); }
+    function rebuildVenueMemoryFromOrders(orders) { const venueSet = new Set(loadSavedVenues()); (orders || []).forEach(order => { const v = (order.venue || '').trim(); if (v) venueSet.add(v); }); localStorage.setItem(VENUE_MEMORY_KEY, JSON.stringify([...venueSet].sort((a, b) => a.localeCompare(b, 'ja')))); renderSavedVenues(); }
+    function saveVenueMemory(venue) { const v = (venue || '').trim(); if (!v) return; const list = loadSavedVenues(); if (!list.includes(v)) { list.push(v); list.sort((a, b) => a.localeCompare(b, 'ja')); localStorage.setItem(VENUE_MEMORY_KEY, JSON.stringify(list)); } renderSavedVenues(); }
 
     function getGroupByFood(food) { return ALLERGY_MASTER[food]?.groups?.[0] || null; }
     function getRelatedGroupsFromPrimary(primary = []) { return [...new Set(primary.flatMap(name => ALLERGY_MASTER[name]?.groups || []))]; }
-function getRelevantFamilyFoods(primary = []) {
-  if (!Array.isArray(primary) || !primary.length) return [];
+    function getRelevantFamilyFoods(primary = []) {
+      if (!Array.isArray(primary) || !primary.length) return [];
 
-  const groups = getRelatedGroupsFromPrimary(primary);
-  return roseFamily.filter(food => groups.includes(getGroupByFood(food)));
-}
+      const groups = getRelatedGroupsFromPrimary(primary);
+      return roseFamily.filter(food => groups.includes(getGroupByFood(food)));
+    }
     function checkRecipeAgainstPerson(itemName, person) {
       const ingredients = RECIPE_MASTER[itemName] || [];
       const primary = person.primary || [];
@@ -852,7 +1450,7 @@ function getRelevantFamilyFoods(primary = []) {
           if (ingGroup && pGroup && ingGroup === pGroup && ing !== p) group.push(ing);
         });
       });
-      return { direct:[...new Set(direct)], group:[...new Set(group)] };
+      return { direct: [...new Set(direct)], group: [...new Set(group)] };
     }
 
     function renderCategories() {
@@ -875,12 +1473,29 @@ function getRelevantFamilyFoods(primary = []) {
       els.addCakeBtn.style.display = selectedCategory === 'アフタヌーンティー' ? 'none' : '';
     }
 
-    function addMasterAllergyPerson(data = null) {
-      const node = els.allergyPersonTemplate.content.firstElementChild.cloneNode(true);
-      els.masterAllergyArea.appendChild(node);
-      wireAllergyPerson(node, data);
-      renumberAllergyPeople();
-    }
+function addMasterAllergyPerson(data = null) {
+  const template = document.getElementById('allergyPersonTemplate');
+  if (!template) {
+    alert('allergyPersonTemplate がHTMLにありません');
+    return;
+  }
+
+  // 既存のアレルギーカードを閉じる
+  document
+    .querySelectorAll('#masterAllergyArea .allergy-person-card')
+    .forEach(card => card.classList.add('collapsed'));
+
+  const node = template.content.firstElementChild.cloneNode(true);
+
+  // 新規だけ開く
+  node.classList.remove('collapsed');
+
+  els.masterAllergyArea.prepend(node);
+  wireAllergyPerson(node, data);
+  renumberAllergyPeople();
+
+  node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
     function renumberAllergyPeople() {
       [...els.masterAllergyArea.querySelectorAll('.allergy-person-card')].forEach((node, idx) => {
@@ -903,43 +1518,56 @@ function getRelevantFamilyFoods(primary = []) {
       });
     }
 
-function wireAllergyPerson(node, data = null) {
-  const removeBtn = node.querySelector('.remove-allergy-person-btn');
-  removeBtn.addEventListener('click', () => { node.remove(); renumberAllergyPeople(); });
-  [...node.querySelectorAll('.primary-allergen-check')].forEach(check => check.addEventListener('change', () => updateAllergySummary(node)));
+    function wireAllergyPerson(node, data = null) {
+              const head = node.querySelector('.allergy-person-head');
 
-  if (data) {
-    node.querySelector('.allergy-person-name').value = data.personName || '';
-    [...node.querySelectorAll('.primary-allergen-check')].forEach(check => { check.checked = (data.primary || []).includes(check.value); });
-    node.querySelector('.final-ng-input').value = data.finalNg || '';
-    node.querySelector('.allergy-method').value = data.method || '';
-    node.querySelector('.allergy-count').value = data.count || 1;
-    node.querySelector('.allergy-note').value = data.note || '';
-    roseFamily.forEach((name, idx) => {
-      const familyItem = node.querySelectorAll('.family-item')[idx];
-      if (!familyItem) return;
-      const status = data.familyChecks?.[name] || '未確認';
-      const target = [...familyItem.querySelectorAll('.family-status')].find(r => r.value === status);
-      if (target) target.checked = true;
-    });
-  }
+head.style.cursor = 'pointer';
 
-  if (!node.querySelector('.allergy-person-name').value.trim()) {
-    node.querySelector('.allergy-person-name').placeholder = '対象者名未入力';
-  }
+head.addEventListener('click', () => {
+  node.classList.toggle('collapsed');
+});  
+const removeBtn = node.querySelector('.remove-allergy-person-btn');
+      removeBtn.addEventListener('click', () => { node.remove(); renumberAllergyPeople(); });
+      [...node.querySelectorAll('.primary-allergen-check')].forEach(check => check.addEventListener('change', () => updateAllergySummary(node)));
 
-  updateAllergySummary(node);
-}
+      if (data) {
+        node.querySelector('.allergy-person-name').value = data.personName || '';
+        [...node.querySelectorAll('.primary-allergen-check')].forEach(check => { check.checked = (data.primary || []).includes(check.value); });
+        node.querySelector('.final-ng-input').value = data.finalNg || '';
+        node.querySelector('.allergy-method').value = data.method || '';
+        node.querySelector('.allergy-count').value = data.count || 1;
+        node.querySelector('.allergy-note').value = data.note || '';
+        roseFamily.forEach((name, idx) => {
+          const familyItem = node.querySelectorAll('.family-item')[idx];
+          if (!familyItem) return;
+          const status = data.familyChecks?.[name] || '未確認';
+          const target = [...familyItem.querySelectorAll('.family-status')].find(r => r.value === status);
+          if (target) target.checked = true;
+
+        });
+      }
+
+      if (!node.querySelector('.allergy-person-name').value.trim()) {
+        node.querySelector('.allergy-person-name').placeholder = '対象者名未入力';
+      }
+
+      updateAllergySummary(node);
+    }
 
     function addItem(type = '') {
       if (selectedCategory === 'アフタヌーンティー') type = 'アフタヌーンティー';
       if (selectedCategory === 'アニバーサリー' && !type) type = 'アニバーサリーケーキ';
       const node = els.itemTemplate.content.firstElementChild.cloneNode(true);
-      els.itemsArea.appendChild(node);
+      els.itemsArea.prepend(node);
       wireItemCard(node, type);
       renumberItems();
     }
+const itemHead = card.querySelector('.item-head');
 
+itemHead.addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+  card.classList.toggle('collapsed');
+});
     function wireItemCard(card, presetType = '') {
       const itemType = card.querySelector('.item-type');
       const cakeFields = card.querySelector('.cake-fields');
@@ -950,11 +1578,12 @@ function wireAllergyPerson(node, data = null) {
       const removeBtn = card.querySelector('.remove-item-btn');
       const itemName = card.querySelector('.item-name');
       if (presetType) itemType.value = presetType;
+     
       const updateItemUI = () => {
         syncCategoryButtons();
         const value = itemType.value;
-        const isCake = ['ホールケーキ','ウエディングケーキ','アニバーサリーケーキ'].includes(value);
-        const hasOptions = ['ホールケーキ','ウエディングケーキ','アニバーサリーケーキ','ギフト'].includes(value);
+        const isCake = ['ホールケーキ', 'ウエディングケーキ', 'アニバーサリーケーキ'].includes(value);
+        const hasOptions = ['ホールケーキ', 'ウエディングケーキ', 'アニバーサリーケーキ', 'ギフト'].includes(value);
         const isDessert = value === '皿盛りデザート';
         cakeFields.classList.toggle('hidden', !isCake);
         optionFields.classList.toggle('hidden', !hasOptions);
@@ -977,50 +1606,50 @@ function wireAllergyPerson(node, data = null) {
         card.querySelector('.dessert-fields').classList.add('hidden');
       }
       if (selectedCategory === 'アニバーサリー') {
-        [...card.querySelector('.item-type').options].forEach(opt => { opt.hidden = ['皿盛りデザート','ウエディングケーキ','ギフト','アフタヌーンティー'].includes(opt.value); });
-        if (['皿盛りデザート','ウエディングケーキ','ギフト','アフタヌーンティー'].includes(card.querySelector('.item-type').value)) card.querySelector('.item-type').value = 'アニバーサリーケーキ';
+        [...card.querySelector('.item-type').options].forEach(opt => { opt.hidden = ['皿盛りデザート', 'ウエディングケーキ', 'ギフト', 'アフタヌーンティー'].includes(opt.value); });
+        if (['皿盛りデザート', 'ウエディングケーキ', 'ギフト', 'アフタヌーンティー'].includes(card.querySelector('.item-type').value)) card.querySelector('.item-type').value = 'アニバーサリーケーキ';
       }
     }
 
     function renumberItems() { [...els.itemsArea.querySelectorAll('.item-card')].forEach((card, index) => card.querySelector('.item-number').textContent = index + 1); }
 
-function collectAllergyMaster() {
-  return {
-    people: [...els.masterAllergyArea.querySelectorAll('.allergy-person-card')].map(node => {
-      const primary = [...node.querySelectorAll('.primary-allergen-check:checked')].map(el => el.value);
-      const familyChecks = {};
-      roseFamily.forEach((name, idx) => {
-        const familyItem = node.querySelectorAll('.family-item')[idx];
-        if (!familyItem) return;
-        const checked = familyItem.querySelector('.family-status:checked');
-        familyChecks[name] = checked ? checked.value : '未確認';
-      });
-
+    function collectAllergyMaster() {
       return {
-        personName: node.querySelector('.allergy-person-name').value.trim(),
-        primary,
-        familyChecks,
-        finalNg: node.querySelector('.final-ng-input').value.trim(),
-        method: node.querySelector('.allergy-method').value,
-        count: Number(node.querySelector('.allergy-count').value || 1),
-        note: node.querySelector('.allergy-note').value.trim()
-      };
-    }).filter(person => {
-      const relatedFoods = getRelevantFamilyFoods(person.primary || []);
-      const hasRelevantFamilyInput = relatedFoods.some(food => {
-        const status = person.familyChecks?.[food];
-        return status && status !== '未確認';
-      });
+        people: [...els.masterAllergyArea.querySelectorAll('.allergy-person-card')].map(node => {
+          const primary = [...node.querySelectorAll('.primary-allergen-check:checked')].map(el => el.value);
+          const familyChecks = {};
+          roseFamily.forEach((name, idx) => {
+            const familyItem = node.querySelectorAll('.family-item')[idx];
+            if (!familyItem) return;
+            const checked = familyItem.querySelector('.family-status:checked');
+            familyChecks[name] = checked ? checked.value : '未確認';
+          });
 
-return (
-  person.primary.length ||
-  person.finalNg ||
-  person.note ||
-  hasRelevantFamilyInput
-);
-    })
-  };
-}
+          return {
+            personName: node.querySelector('.allergy-person-name').value.trim(),
+            primary,
+            familyChecks,
+            finalNg: node.querySelector('.final-ng-input').value.trim(),
+            method: node.querySelector('.allergy-method').value,
+            count: Number(node.querySelector('.allergy-count').value || 1),
+            note: node.querySelector('.allergy-note').value.trim()
+          };
+        }).filter(person => {
+          const relatedFoods = getRelevantFamilyFoods(person.primary || []);
+          const hasRelevantFamilyInput = relatedFoods.some(food => {
+            const status = person.familyChecks?.[food];
+            return status && status !== '未確認';
+          });
+
+          return (
+            person.primary.length ||
+            person.finalNg ||
+            person.note ||
+            hasRelevantFamilyInput
+          );
+        })
+      };
+    }
 
     function collectItems() {
       return [...els.itemsArea.querySelectorAll('.item-card')].map(card => {
@@ -1101,147 +1730,196 @@ return (
         const index = orders.findIndex(order => order.id === editingId);
         if (index !== -1) orders[index] = { ...orders[index], ...data };
       } else {
-        orders.push({ id:`${Date.now()}-${Math.floor(Math.random()*1000)}`, createdAt:Date.now(), ...data });
+        orders.push({ id: `${Date.now()}-${Math.floor(Math.random() * 1000)}`, createdAt: Date.now(), ...data });
       }
       saveOrders(orders);
       saveVenueMemory(data.venue);
-      resetForm({ category:selectedCategory, date:data.date, time:data.time, clientName:data.clientName, venue:data.venue, guestCount:data.guestCount, coursePrice:data.coursePrice, status:data.status, afternoonTeaType:data.afternoonTeaType });
+      resetForm({ category: selectedCategory, date: data.date, time: data.time, clientName: data.clientName, venue: data.venue, guestCount: data.guestCount, coursePrice: data.coursePrice, status: data.status, afternoonTeaType: data.afternoonTeaType });
       renderOrders();
       window.alert(editingId ? '更新しました。' : '登録しました。');
     }
 
     function renderFilterPills() {
-      els.filterPills.innerHTML = filters.map(filter => `<button type="button" class="pill ${filter===activeFilter?'active':''}" data-filter="${filter}">${filter}</button>`).join('');
+      els.filterPills.innerHTML = filters.map(filter => `<button type="button" class="pill ${filter === activeFilter ? 'active' : ''}" data-filter="${filter}">${filter}</button>`).join('');
       [...els.filterPills.querySelectorAll('button')].forEach(btn => btn.addEventListener('click', () => { activeFilter = btn.dataset.filter; renderFilterPills(); renderOrders(); }));
     }
-function isInRange(date) {
-  if (!date) return false;
+    function isInRange(date) {
+      if (!date) return false;
 
-  const d = new Date(date);
+      const d = new Date(date);
 
-  if (fromDate.value && d < new Date(fromDate.value)) return false;
-  if (toDate.value && d > new Date(toDate.value)) return false;
+      if (fromDate.value && d < new Date(fromDate.value)) return false;
+      if (toDate.value && d > new Date(toDate.value)) return false;
 
-  return true;
-}
-
-function filteredOrders() {
-  const q = els.searchInput.value.trim().toLowerCase();
-  const sort = els.sortSelect.value;
-
-  let orders = loadOrders().filter(order => {
-    const hasTask =
-      ['未確認', '製造待ち'].includes(order.status) ||
-      (order.allergyMaster?.people || []).some(p => {
-        const foods = getRelevantFamilyFoods(p.primary || []);
-        return foods.some(f => (p.familyChecks?.[f] || '未確認') === '未確認');
-      });
-
-    const matchFilter =
-      activeFilter === '全件' ? true :
-      activeFilter === '今日' ? order.date === todayStr(0) :
-      activeFilter === '明日' ? order.date === todayStr(1) :
-      activeFilter === '今週' ? isThisWeek(order.date) :
-      activeFilter === '未完了' ? order.status !== '納品済み' :
-      activeFilter === '納品済み' ? order.status === '納品済み' :
-      activeFilter === 'タスクあり' ? hasTask :
-      order.category === activeFilter;
-
-    const matchDateRange = isInRange(order.date);
-
-    const allergyText = (order.allergyMaster?.people || [])
-      .map(p => [p.personName, p.primary?.join(' '), p.finalNg, p.note].join(' '))
-      .join(' ');
-
-    const itemText = (order.items || [])
-      .map(item => [item.type, item.name, item.notes, item.options?.join(' ')].join(' '))
-      .join(' ');
-
-    const haystack = [order.clientName, order.venue, order.orderNotes, itemText, allergyText].join(' ').toLowerCase();
-
-    return matchFilter && matchDateRange && (!q || haystack.includes(q));
-  });
-
-  orders.sort((a, b) =>
-    sort === 'dateAsc'
-      ? `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`)
-      : sort === 'dateDesc'
-        ? `${b.date}${b.time || ''}`.localeCompare(`${a.date}${a.time || ''}`)
-        : b.createdAt - a.createdAt
-  );
-
-  return orders;
-}
-function renderStats(orders = loadOrders()) {
-      const stats = [['全件',orders.length],['今日',orders.filter(o=>o.date===todayStr(0)).length],['明日',orders.filter(o=>o.date===todayStr(1)).length],['未完了',orders.filter(o=>o.status!=='納品済み').length],['婚礼',orders.filter(o=>o.category==='婚礼').length]];
-      els.stats.innerHTML = stats.map(([label,value]) => `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`).join('');
+      return true;
     }
 
-    function orderTotalCost(order) { return (order.items || []).reduce((sum,item)=>sum + (Number(item.cost)||0), 0); }
+    function filteredOrders() {
+      const q = els.searchInput.value.trim().toLowerCase();
+      const sort = els.sortSelect.value;
 
+      let orders = loadOrders().filter(order => {
+        const hasTask =
+          ['未確認', '製造待ち'].includes(order.status) ||
+          (order.allergyMaster?.people || []).some(p => {
+            const foods = getRelevantFamilyFoods(p.primary || []);
+            return foods.some(f => (p.familyChecks?.[f] || '未確認') === '未確認');
+          });
+
+        const matchFilter =
+          activeFilter === '全件' ? true :
+            activeFilter === '今日' ? order.date === todayStr(0) :
+              activeFilter === '明日' ? order.date === todayStr(1) :
+                activeFilter === '今週' ? isThisWeek(order.date) :
+                  activeFilter === '未完了' ? order.status !== '納品済み' :
+                    activeFilter === '納品済み' ? order.status === '納品済み' :
+                      activeFilter === 'タスクあり' ? hasTask :
+                        order.category === activeFilter;
+
+        const matchDateRange = isInRange(order.date);
+
+        const allergyText = (order.allergyMaster?.people || [])
+          .map(p => [p.personName, p.primary?.join(' '), p.finalNg, p.note].join(' '))
+          .join(' ');
+
+        const itemText = (order.items || [])
+          .map(item => [item.type, item.name, item.notes, item.options?.join(' ')].join(' '))
+          .join(' ');
+
+        const haystack = [order.clientName, order.venue, order.orderNotes, itemText, allergyText].join(' ').toLowerCase();
+
+        return matchFilter && matchDateRange && (!q || haystack.includes(q));
+      });
+
+      orders.sort((a, b) =>
+        sort === 'dateAsc'
+          ? `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`)
+          : sort === 'dateDesc'
+            ? `${b.date}${b.time || ''}`.localeCompare(`${a.date}${a.time || ''}`)
+            : b.createdAt - a.createdAt
+      );
+
+      return orders;
+    }
+    function renderStats() {
+      const orders = loadOrders();
+      const today = orders.filter(o => o.date === todayStr(0));
+      const unfinished = today.filter(o => o.status !== '納品済み');
+
+      const allergyCount = today.reduce((sum, o) => {
+        return sum + (o.allergyMaster?.people?.length || 0);
+      }, 0);
+
+      document.getElementById('todaySummary').innerHTML =
+        `本日予約 ${today.length}件　未完了 ${unfinished.length}件　アレルギー ${allergyCount}名`;
+    }
+
+    function orderTotalCost(order) { return (order.items || []).reduce((sum, item) => sum + (Number(item.cost) || 0), 0); }
+function showOrderDetail(order) {
+  els.orderDetailPanel.classList.remove('hidden');
+
+  els.orderDetailPanel.innerHTML = `
+    <div class="order-detail-title">
+      ${escapeHtml(order.clientName)}
+    </div>
+
+    <div class="meta">
+      ${escapeHtml(order.category)}
+      /
+      ${escapeHtml(order.date)}
+      ${escapeHtml(order.time || '')}
+    </div>
+
+    <div class="meta" style="margin-top:8px;">
+      会場：${escapeHtml(order.venue || '')}
+    </div>
+
+    <div class="meta">
+      ステータス：${escapeHtml(order.status)}
+    </div>
+
+    <div class="order-detail-actions">
+      <button class="btn-dark" id="detailEditBtn">
+        編集
+      </button>
+    </div>
+  `;
+
+  document
+    .getElementById('detailEditBtn')
+    .addEventListener('click', () => {
+      editOrder(order.id);
+    });
+}
 function renderOrders() {
   const all = loadOrders();
   const orders = filteredOrders();
 
   renderStats(all);
-      if (!orders.length) { els.ordersList.innerHTML = '<div class="empty">該当する注文がありません。</div>'; return; }
-      els.ordersList.innerHTML = orders.map(order => `
-<article class="order-card ${
-  (
-    ['未確認', '製造待ち'].includes(order.status) ||
-    (order.allergyMaster?.people || []).some(p => {
-      const foods = getRelevantFamilyFoods(p.primary || []);
-      return foods.some(f => (p.familyChecks?.[f] || '未確認') === '未確認');
-    })
-  ) ? 'task' : ''
-}">
-          <div class="order-top">
-            <div>
-              <div class="order-title">${escapeHtml(order.clientName)}</div>
-              <div class="meta">${escapeHtml(order.category)} / ${escapeHtml(order.date || '')}${order.time ? ` ${escapeHtml(order.time)}` : ''}<br>${escapeHtml(order.venue || '場所未入力')}</div>
-              <div class="badge-row">
-                <span class="badge">${escapeHtml(order.status)}</span>
-                ${order.guestCount ? `<span class="badge">人数 ${order.guestCount}</span>` : ''}
-                ${order.coursePrice ? `<span class="badge">コース ${order.coursePrice.toLocaleString()}円</span>` : ''}
-                <span class="badge">商品 ${order.items.length}件</span>
-                <span class="badge">原価合計 ${orderTotalCost(order).toLocaleString()}円</span>
-                ${(order.allergyMaster?.people || []).length ? `<span class="badge">アレルギー ${(order.allergyMaster.people || []).length}名</span>` : ''}
-              </div>
-            </div>
-            <div class="action-row">
-              <button class="btn-light" data-edit="${order.id}">編集</button>
-              <button class="btn-warning" data-next="${order.id}">ステータス進める</button>
-              <button class="btn-danger" data-delete="${order.id}">削除</button>
-            </div>
-          </div>
-          ${order.orderNotes ? `<div class="meta">全体備考：${escapeHtml(order.orderNotes)}</div>` : ''}
-          ${(order.allergyMaster?.people || []).length ? `<div class="meta" style="margin-top:8px;">アレルギー対象者：${escapeHtml((order.allergyMaster.people || []).map((p,i)=>p.personName || `${i+1}人目`).join(' / '))}</div>` : ''}
-          <div class="mini-list">
-            ${(order.items || []).map(item => {
-              const recipeJudge = (order.allergyMaster?.people || []).length && order.allergyMaster.people[0] ? checkRecipeAgainstPerson(item.name, order.allergyMaster.people[0]) : { direct:[], group:[] };
-              const recipeText = [recipeJudge.direct.length ? `直接NG: ${recipeJudge.direct.join(' / ')}` : '', recipeJudge.group.length ? `同科注意: ${recipeJudge.group.join(' / ')}` : ''].filter(Boolean).join(' ｜ ');
-              return `
-                <div class="mini-item">
-                  <strong>${escapeHtml(item.type)}</strong>｜${escapeHtml(item.name || '')} × ${item.quantity || 1}
-                  ${item.cost ? `｜原価 ${Number(item.cost).toLocaleString()}円` : ''}
-                  ${item.size ? `｜サイズ ${escapeHtml(item.size)}` : ''}
-                  ${item.squareSize ? `｜${escapeHtml(item.squareSize)}` : ''}
-                  ${item.multiSize ? `｜段構成 ${escapeHtml(item.multiSize)}` : ''}
-                  ${item.options && item.options.length ? `｜オプション ${escapeHtml(item.options.join(' / '))}` : ''}
-                  ${item.plateMessage ? `｜プレート ${escapeHtml(item.plateMessage)}` : ''}
-                  ${item.dessertCostNote ? `｜${escapeHtml(item.dessertCostNote)}` : ''}
-                  ${recipeText ? `<div class="meta" style="margin-top:6px;">${escapeHtml(recipeText)}</div>` : ''}
-                  ${item.notes ? `<div class="meta" style="margin-top:6px;">商品備考：${escapeHtml(item.notes)}</div>` : ''}
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </article>
-      `).join('');
-      [...els.ordersList.querySelectorAll('[data-delete]')].forEach(btn => btn.addEventListener('click', () => deleteOrder(btn.dataset.delete)));
-      [...els.ordersList.querySelectorAll('[data-edit]')].forEach(btn => btn.addEventListener('click', () => editOrder(btn.dataset.edit)));
-      [...els.ordersList.querySelectorAll('[data-next]')].forEach(btn => btn.addEventListener('click', () => advanceStatus(btn.dataset.next)));
-    }
+
+  if (!orders.length) {
+    els.ordersList.innerHTML = '<div class="empty">該当する注文がありません。</div>';
+    return;
+  }
+
+  els.ordersList.innerHTML = `
+    <div class="order-table-wrap">
+      <table class="order-table">
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>区分</th>
+            <th>名前</th>
+            <th>会場</th>
+            <th>商品</th>
+            <th>状態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${orders.map(order => `
+            <tr data-order-id="${order.id}">
+              <td>${escapeHtml(order.date || '')}</td>
+              <td>${escapeHtml(order.category || '')}</td>
+              <td>${escapeHtml(order.clientName || '')}</td>
+              <td>${escapeHtml(order.venue || '')}</td>
+              <td>${escapeHtml((order.items || []).map(i => i.name || i.type).join(' / '))}</td>
+              <td>${escapeHtml(order.status || '')}</td>
+              <td>
+                <button class="btn-light" data-edit="${order.id}">編集</button>
+                <button class="btn-warning" data-next="${order.id}">進める</button>
+                <button class="btn-danger" data-delete="${order.id}">削除</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  [...els.ordersList.querySelectorAll('[data-delete]')].forEach(btn =>
+    btn.addEventListener('click', () => deleteOrder(btn.dataset.delete))
+  );
+
+  [...els.ordersList.querySelectorAll('[data-edit]')].forEach(btn =>
+    btn.addEventListener('click', () => editOrder(btn.dataset.edit))
+  );
+
+  [...els.ordersList.querySelectorAll('[data-next]')].forEach(btn =>
+    btn.addEventListener('click', () => advanceStatus(btn.dataset.next))
+  );
+  [...els.ordersList.querySelectorAll('tbody tr')].forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+
+      const id = row.dataset.orderid;
+      const order = loadOrders().find(o => o.id === id);
+      if (!order) return;
+
+      showOrderDetail(order);
+    });
+  });
+}
 
     function deleteOrder(id) {
       if (!window.confirm('この注文を削除しますか？')) return;
@@ -1281,93 +1959,96 @@ function renderOrders() {
         card.querySelector('.item-type').dispatchEvent(new Event('change'));
         card.querySelector('.cake-size').dispatchEvent(new Event('change'));
       });
-      closePrintCards(); closeMonthlyReport(); closeTaskModal(); window.scrollTo({ top:0, behavior:'smooth' });
+      closePrintCards(); closeMonthlyReport(); closeTaskModal(); window.scrollTo({ top: 0, behavior: 'smooth' });
+      viewToggle
+        .querySelector('[data-view="form"]')
+        .click();
     }
-function shortCategory(category) {
-  if (category === '婚礼') return 'BR';
-  if (category === 'アニバーサリー') return 'AVS';
-  if (category === '宴会') return 'BQ';
-  if (category === 'アフタヌーンティー') return 'AT';
-  return category || '';
-}
+    function shortCategory(category) {
+      if (category === '婚礼') return 'BR';
+      if (category === 'アニバーサリー') return 'AVS';
+      if (category === '宴会') return 'BQ';
+      if (category === 'アフタヌーンティー') return 'AT';
+      return category || '';
+    }
 
-function formatShortDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const week = ['日','月','火','水','木','金','土'][d.getDay()];
-  return `${m}/${day}(${week})`;
-}
-function buildPrintCards() {
-  const cards = [];
+    function formatShortDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr + 'T00:00:00');
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      const week = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+      return `${m}/${day}(${week})`;
+    }
+    function buildPrintCards() {
+      const cards = [];
 
-  loadOrders().forEach(order => {
-    (order.allergyMaster?.people || []).forEach((person, idx) => {
-      const ngFamily = roseFamily.filter(name => person.familyChecks?.[name] === 'NG');
-      const relevantFoods = getRelevantFamilyFoods(person.primary || []);
-      const checkedFamilies = relevantFoods.filter(name => {
-        const status = person.familyChecks?.[name];
-        return status === '可' || status === 'NG';
+      loadOrders().forEach(order => {
+        (order.allergyMaster?.people || []).forEach((person, idx) => {
+          const ngFamily = roseFamily.filter(name => person.familyChecks?.[name] === 'NG');
+          const relevantFoods = getRelevantFamilyFoods(person.primary || []);
+          const checkedFamilies = relevantFoods.filter(name => {
+            const status = person.familyChecks?.[name];
+            return status === '可' || status === 'NG';
+          });
+
+          const rawName = (person.personName || '').trim();
+          const isAutoName = /^\d+人目$/.test(rawName);
+          const displayName = rawName && !isAutoName ? rawName : (order.clientName || '名前未入力');
+
+          cards.push({
+            badge: `${idx + 1}人目`,
+            guestName: displayName,
+            categoryShort: shortCategory(order.category),
+            dateVenue: `${formatShortDate(order.date)} / ${order.venue || ''}`,
+            primary: (person.primary || []).join(' / '),
+            familyChecked: relevantFoods.length > 0 && checkedFamilies.length === relevantFoods.length,
+            familyNg: ngFamily.join(' / '),
+            finalNg: person.finalNg || '',
+            method: person.method || '',
+            note: person.note || ''
+          });
+        });
       });
 
-      const rawName = (person.personName || '').trim();
-      const isAutoName = /^\d+人目$/.test(rawName);
-      const displayName = rawName && !isAutoName ? rawName : (order.clientName || '名前未入力');
-
-      cards.push({
-        badge: `${idx + 1}人目`,
-        guestName: displayName,
-        categoryShort: shortCategory(order.category),
-        dateVenue: `${formatShortDate(order.date)} / ${order.venue || ''}`,
-        primary: (person.primary || []).join(' / '),
-        familyChecked: relevantFoods.length > 0 && checkedFamilies.length === relevantFoods.length,
-        familyNg: ngFamily.join(' / '),
-        finalNg: person.finalNg || '',
-        method: person.method || '',
-        note: person.note || ''
-      });
-    });
-  });
-
-  return cards;
-}
-function openPrintCards() {
-  const cards = buildPrintCards();
-  if (!cards.length) return window.alert('アレルギー情報が入った対象者がありません。');
-
-  els.printCardsArea.innerHTML = cards.map(card => {
-    const lines = [];
-
-    if (card.primary) {
-      lines.push(`<div class="compact-line"><strong>主</strong> ${escapeHtml(card.primary)}</div>`);
+      return cards;
     }
+    function openPrintCards() {
+      const cards = buildPrintCards();
+      if (!cards.length) return window.alert('アレルギー情報が入った対象者がありません。');
 
-    if (card.familyChecked) {
-      if (card.familyNg) {
-        lines.push(`<div class="compact-line"><strong>同科</strong> 確認済み / NG ${escapeHtml(card.familyNg)}</div>`);
-      } else {
-        lines.push(`<div class="compact-line"><strong>同科</strong> 確認済み</div>`);
-      }
-    }
+      els.printCardsArea.innerHTML = cards.map(card => {
+        const lines = [];
 
-    if (card.finalNg) {
-      lines.push(`<div class="compact-line"><strong>最終</strong> ${escapeHtml(card.finalNg)}</div>`);
-    }
+        if (card.primary) {
+          lines.push(`<div class="compact-line"><strong>主</strong> ${escapeHtml(card.primary)}</div>`);
+        }
 
-    if (card.method) {
-      lines.push(`<div class="compact-line"><strong>対応</strong> ${escapeHtml(card.method)}</div>`);
-    }
+        if (card.familyChecked) {
+          if (card.familyNg) {
+            lines.push(`<div class="compact-line"><strong>同科</strong> 確認済み / NG ${escapeHtml(card.familyNg)}</div>`);
+          } else {
+            lines.push(`<div class="compact-line"><strong>同科</strong> 確認済み</div>`);
+          }
+        }
 
-    if (card.note) {
-      lines.push(`<div class="compact-line"><strong>メモ</strong> ${escapeHtml(card.note)}</div>`);
-    }
+        if (card.finalNg) {
+          lines.push(`<div class="compact-line"><strong>最終</strong> ${escapeHtml(card.finalNg)}</div>`);
+        }
 
-    if (!lines.length) {
-      lines.push(`<div class="compact-line compact-empty">特記事項なし</div>`);
-    }
+        if (card.method) {
+          lines.push(`<div class="compact-line"><strong>対応</strong> ${escapeHtml(card.method)}</div>`);
+        }
 
-    return `
+        if (card.note) {
+          lines.push(`<div class="compact-line"><strong>メモ</strong> ${escapeHtml(card.note)}</div>`);
+        }
+
+        if (!lines.length) {
+          lines.push(`<div class="compact-line compact-empty">特記事項なし</div>`);
+        }
+
+        return `
       <article class="allergy-card compact">
         <div class="allergy-head compact-head">
           <div class="compact-main">
@@ -1379,10 +2060,10 @@ function openPrintCards() {
         ${lines.join('')}
       </article>
     `;
-  }).join('');
+      }).join('');
 
-  els.printModal.classList.remove('hidden');
-}
+      els.printModal.classList.remove('hidden');
+    }
     function closePrintCards() { els.printModal.classList.add('hidden'); }
 
     function buildTaskData() {
@@ -1395,7 +2076,7 @@ function openPrintCards() {
           const relatedFoods = getRelevantFamilyFoods(person.primary || []);
           return relatedFoods.some(food => (person.familyChecks?.[food] || '未確認') === '未確認');
         });
-        const hasTaskBase = ['未確認','製造待ち'].includes(order.status) || hasUncheckedFamily;
+        const hasTaskBase = ['未確認', '製造待ち'].includes(order.status) || hasUncheckedFamily;
         if (!hasTaskBase) return false;
         if (categoryFilter !== 'all' && order.category !== categoryFilter) return false;
         if (dateFilter === 'today' && order.date !== todayStr(0)) return false;
@@ -1406,12 +2087,12 @@ function openPrintCards() {
         const entries = [];
         if (order.status === '未確認') {
           const key = `${order.id}::confirm`;
-          entries.push({ key, label:'内容確認', detail:`${order.category} / ${order.clientName}`, checked:!!checks[key] });
+          entries.push({ key, label: '内容確認', detail: `${order.category} / ${order.clientName}`, checked: !!checks[key] });
         }
         if (order.status === '製造待ち') {
           (order.items || []).forEach((item, index) => {
             const key = `${order.id}::prep::${index}`;
-            entries.push({ key, label:'仕込み', detail:`${item.name || item.type} × ${item.quantity || 1}`, checked:!!checks[key] });
+            entries.push({ key, label: '仕込み', detail: `${item.name || item.type} × ${item.quantity || 1}`, checked: !!checks[key] });
           });
         }
         (order.allergyMaster?.people || []).forEach((person, personIndex) => {
@@ -1419,10 +2100,10 @@ function openPrintCards() {
           const uncheckedFamilies = relatedFoods.filter(food => (person.familyChecks?.[food] || '未確認') === '未確認');
           if (!uncheckedFamilies.length) return;
           const key = `${order.id}::family::${personIndex}`;
-          entries.push({ key, label:'同科確認', detail:`${person.personName || `${personIndex + 1}人目`} / ${uncheckedFamilies.join('・')}`, checked:!!checks[key] });
+          entries.push({ key, label: '同科確認', detail: `${person.personName || `${personIndex + 1}人目`} / ${uncheckedFamilies.join('・')}`, checked: !!checks[key] });
         });
         const filteredEntries = typeFilter === 'all' ? entries : entries.filter(entry => entry.label === typeFilter);
-        return { title: order.clientName, meta:`${order.category} / ${order.date || ''}${order.time ? ` ${order.time}` : ''} / ${order.venue || '場所未入力'}`, status:order.status, entries:filteredEntries };
+        return { title: order.clientName, meta: `${order.category} / ${order.date || ''}${order.time ? ` ${order.time}` : ''} / ${order.venue || '場所未入力'}`, status: order.status, entries: filteredEntries };
       }).filter(group => group.entries.length);
     }
 
@@ -1446,62 +2127,62 @@ function openPrintCards() {
     }
     function openTaskModal() { renderTaskModal(); els.taskModal.classList.remove('hidden'); }
     function closeTaskModal() { els.taskModal.classList.add('hidden'); }
-function buildMonthlyReport(monthStr) {
-  const [year, month] = monthStr.split('-').map(Number);
+    function buildMonthlyReport(monthStr) {
+      const [year, month] = monthStr.split('-').map(Number);
 
-  const orders = loadOrders().filter(order => {
-    if (order.status !== '納品済み') return false;
-    if (!order.date) return false;
+      const orders = loadOrders().filter(order => {
+        if (order.status !== '納品済み') return false;
+        if (!order.date) return false;
 
-    const d = new Date(order.date + 'T00:00:00');
-    return d.getFullYear() === year && d.getMonth() + 1 === month;
-  });
-
-  const result = {
-    orderCount: orders.length,
-    totalCost: 0,
-    categoryCount: {},
-    sizeCount: {},
-    itemTypeCount: {},
-    optionCount: {},
-    customerCount: {}
-  };
-
-  orders.forEach(order => {
-    result.categoryCount[order.category] = (result.categoryCount[order.category] || 0) + 1;
-    result.customerCount[order.clientName || '名前未入力'] = (result.customerCount[order.clientName || '名前未入力'] || 0) + 1;
-
-    (order.items || []).forEach(item => {
-      const qty = Number(item.quantity || 0);
-      const cost = Number(item.cost || 0);
-
-      result.totalCost += cost * qty;
-      result.itemTypeCount[item.type || '未分類'] = (result.itemTypeCount[item.type || '未分類'] || 0) + qty;
-
-      const sizeText = item.multiSize || item.size || '';
-
-      if (sizeText) {
-        sizeText
-          .split(/[＋+\s、,／/]+/)
-          .map(s => s.trim())
-          .filter(Boolean)
-          .forEach(size => {
-            result.sizeCount[size] = (result.sizeCount[size] || 0) + qty;
-          });
-      }
-
-      (item.options || []).forEach(opt => {
-        result.optionCount[opt] = (result.optionCount[opt] || 0) + 1;
+        const d = new Date(order.date + 'T00:00:00');
+        return d.getFullYear() === year && d.getMonth() + 1 === month;
       });
-    });
-  });
 
-  return result;
-}
-    function mapToRows(mapObj, suffix='') {
-      const entries = Object.entries(mapObj).sort((a,b)=>b[1]-a[1]);
+      const result = {
+        orderCount: orders.length,
+        totalCost: 0,
+        categoryCount: {},
+        sizeCount: {},
+        itemTypeCount: {},
+        optionCount: {},
+        customerCount: {}
+      };
+
+      orders.forEach(order => {
+        result.categoryCount[order.category] = (result.categoryCount[order.category] || 0) + 1;
+        result.customerCount[order.clientName || '名前未入力'] = (result.customerCount[order.clientName || '名前未入力'] || 0) + 1;
+
+        (order.items || []).forEach(item => {
+          const qty = Number(item.quantity || 0);
+          const cost = Number(item.cost || 0);
+
+          result.totalCost += cost * qty;
+          result.itemTypeCount[item.type || '未分類'] = (result.itemTypeCount[item.type || '未分類'] || 0) + qty;
+
+          const sizeText = item.multiSize || item.size || '';
+
+          if (sizeText) {
+            sizeText
+              .split(/[＋+\s、,／/]+/)
+              .map(s => s.trim())
+              .filter(Boolean)
+              .forEach(size => {
+                result.sizeCount[size] = (result.sizeCount[size] || 0) + qty;
+              });
+          }
+
+          (item.options || []).forEach(opt => {
+            result.optionCount[opt] = (result.optionCount[opt] || 0) + 1;
+          });
+        });
+      });
+
+      return result;
+    }
+    function mapToRows(mapObj, suffix = '') {
+      const entries = Object.entries(mapObj).sort((a, b) => b[1] - a[1]);
       if (!entries.length) return '<div class="empty">該当データなし</div>';
-      return `<div class="report-list">${entries.map(([k,v]) => `<div class="report-card"><div class="report-row"><span>${escapeHtml(k)}</span><strong>${Number(v).toLocaleString()}${suffix}</strong></div></div>`).join('')}</div>`;
+      return `<div class="report-list">${entries.map(([k, v]) => `<div class="report-card"><div class="report-row"><span>${escapeHtml(k)}</span><strong>${Number(v).toLocaleString()}${suffix}</strong></div></div>`).join('')}</div>`;
     }
     function runMonthlyReport() {
       const monthStr = els.reportMonthInput.value || currentMonthStr(); const report = buildMonthlyReport(monthStr); const [year, month] = monthStr.split('-');
@@ -1512,111 +2193,111 @@ function buildMonthlyReport(monthStr) {
           <span class="badge">原価合計 ${report.totalCost.toLocaleString()}円</span>
         </div>
         <div class="grid-2">
-          <div class="report-card"><div class="report-title">カテゴリ別</div>${mapToRows(report.categoryCount,'件')}</div>
-          <div class="report-card"><div class="report-title">商品区分別数量</div>${mapToRows(report.itemTypeCount,'点')}</div>
-          <div class="report-card"><div class="report-title">サイズ別数量</div>${mapToRows(report.sizeCount,'台')}</div>
-          <div class="report-card"><div class="report-title">オプション使用回数</div>${mapToRows(report.optionCount,'回')}</div>
-          <div class="report-card" style="grid-column:1 / -1;"><div class="report-title">顧客別件数</div>${mapToRows(report.customerCount,'件')}</div>
+          <div class="report-card"><div class="report-title">カテゴリ別</div>${mapToRows(report.categoryCount, '件')}</div>
+          <div class="report-card"><div class="report-title">商品区分別数量</div>${mapToRows(report.itemTypeCount, '点')}</div>
+          <div class="report-card"><div class="report-title">サイズ別数量</div>${mapToRows(report.sizeCount, '台')}</div>
+          <div class="report-card"><div class="report-title">オプション使用回数</div>${mapToRows(report.optionCount, '回')}</div>
+          <div class="report-card" style="grid-column:1 / -1;"><div class="report-title">顧客別件数</div>${mapToRows(report.customerCount, '件')}</div>
         </div>`;
     }
-function openMonthlyReport() {
-  els.reportMonthInput.value = currentMonthStr();
-  runMonthlyReport();
-  els.reportModal.classList.remove('hidden');
-}
+    function openMonthlyReport() {
+      els.reportMonthInput.value = currentMonthStr();
+      runMonthlyReport();
+      els.reportModal.classList.remove('hidden');
+    }
     function closeMonthlyReport() { els.reportModal.classList.add('hidden'); }
 
-   async function handleJsonImport(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
+    async function handleJsonImport(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-  const reader = new FileReader();
+      const reader = new FileReader();
 
-  reader.onload = function(e) {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      if (!Array.isArray(parsed)) {
-        return window.alert('JSONの形式が正しくありません。配列データを読み込んでください。');
-      }
+      reader.onload = function (e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!Array.isArray(parsed)) {
+            return window.alert('JSONの形式が正しくありません。配列データを読み込んでください。');
+          }
 
-      const normalized = parsed.map(normalizeImportedOrder);
-      const shouldAppend = window.confirm('OKで追加読み込み、キャンセルで上書き読み込みします。');
-const existing = loadOrders();
-let finalOrders;
+          const normalized = parsed.map(normalizeImportedOrder);
+          const shouldAppend = window.confirm('OKで追加読み込み、キャンセルで上書き読み込みします。');
+          const existing = loadOrders();
+          let finalOrders;
 
-if (shouldAppend) {
-  const merged = [...existing];
+          if (shouldAppend) {
+            const merged = [...existing];
 
-  normalized.forEach(newOrder => {
-    if (!existing.some(o => o.id === newOrder.id)) {
-      merged.push(newOrder);
+            normalized.forEach(newOrder => {
+              if (!existing.some(o => o.id === newOrder.id)) {
+                merged.push(newOrder);
+              }
+            });
+
+            finalOrders = merged;
+          } else {
+            finalOrders = normalized;
+          }
+
+          saveOrders(finalOrders);
+          rebuildVenueMemoryFromOrders(finalOrders);
+          renderOrders();
+          resetForm();
+
+          window.alert(`JSONを${shouldAppend ? '追加' : '上書き'}反映しました。`);
+        } catch (error) {
+          console.error(error);
+          window.alert('JSONの読み込みに失敗しました。');
+        } finally {
+          event.target.value = '';
+        }
+      };
+
+      reader.onerror = function () {
+        window.alert('ファイルの読み込みに失敗しました。');
+        event.target.value = '';
+      };
+
+      reader.readAsText(file, 'utf-8');
     }
-  });
-
-  finalOrders = merged;
-} else {
-  finalOrders = normalized;
-}
-
-      saveOrders(finalOrders);
-      rebuildVenueMemoryFromOrders(finalOrders);
-      renderOrders();
-      resetForm();
-
-      window.alert(`JSONを${shouldAppend ? '追加' : '上書き'}反映しました。`);
-    } catch (error) {
-      console.error(error);
-      window.alert('JSONの読み込みに失敗しました。');
-    } finally {
-      event.target.value = '';
-    }
-  };
-
-  reader.onerror = function() {
-    window.alert('ファイルの読み込みに失敗しました。');
-    event.target.value = '';
-  };
-
-  reader.readAsText(file, 'utf-8');
-}
 
     function exportJson() {
-      const data = JSON.stringify(loadOrders(), null, 2); const blob = new Blob([data], { type:'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `orders-v7-${todayStr(0)}.json`; a.click(); URL.revokeObjectURL(url);
+      const data = JSON.stringify(loadOrders(), null, 2); const blob = new Blob([data], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `orders-v7-${todayStr(0)}.json`; a.click(); URL.revokeObjectURL(url);
     }
-function clearAll() {
-  if (!window.confirm('全件削除します。元に戻せません。')) return;
+    function clearAll() {
+      if (!window.confirm('全件削除します。元に戻せません。')) return;
 
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem(TASK_CHECK_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(TASK_CHECK_KEY);
 
-  resetForm();
-  renderOrders();
-}
+      resetForm();
+      renderOrders();
+    }
 
     viewToggle.addEventListener('click', (e) => {
-  if (!e.target.dataset.view) return;
+      if (!e.target.dataset.view) return;
 
-  document.querySelectorAll('#viewToggle .pill').forEach(p => p.classList.remove('active'));
-  e.target.classList.add('active');
+      document.querySelectorAll('#viewToggle .pill').forEach(p => p.classList.remove('active'));
+      e.target.classList.add('active');
 
-  if (e.target.dataset.view === 'form') {
-    formSection.classList.remove('view-hidden');
-    listSection.classList.add('view-hidden');
-  } else {
-    formSection.classList.add('view-hidden');
-    listSection.classList.remove('view-hidden');
-  }
-});
+      if (e.target.dataset.view === 'form') {
+        formSection.classList.remove('view-hidden');
+        listSection.classList.add('view-hidden');
+      } else {
+        formSection.classList.add('view-hidden');
+        listSection.classList.remove('view-hidden');
+      }
+    });
 
-fromDate.addEventListener('change', renderOrders);
-toDate.addEventListener('change', renderOrders);
+    fromDate.addEventListener('change', renderOrders);
+    toDate.addEventListener('change', renderOrders);
 
-clearDateFilterBtn.addEventListener('click', () => {
-  fromDate.value = '';
-  toDate.value = '';
-  renderOrders();
-});
-els.addMasterAllergyBtn.addEventListener('click', () => addMasterAllergyPerson());
+    clearDateFilterBtn.addEventListener('click', () => {
+      fromDate.value = '';
+      toDate.value = '';
+      renderOrders();
+    });
+    els.addMasterAllergyBtn.addEventListener('click', () => addMasterAllergyPerson());
     els.addItemBtn.addEventListener('click', () => addItem('その他'));
     els.addDessertBtn.addEventListener('click', () => addItem('皿盛りデザート'));
     els.addCakeBtn.addEventListener('click', () => addItem(selectedCategory === '婚礼' ? 'ウエディングケーキ' : selectedCategory === 'アニバーサリー' ? 'アニバーサリーケーキ' : 'ホールケーキ'));
@@ -1641,14 +2322,24 @@ els.addMasterAllergyBtn.addEventListener('click', () => addMasterAllergyPerson()
     els.resetFormBtn.addEventListener('click', () => resetForm());
     els.clearAllBtn.addEventListener('click', clearAll);
 
-renderSavedVenues();
-renderCategories();
-renderFilterPills();
-applyCategoryUI();
-syncCategoryButtons();
-resetForm();
-listSection.classList.add('view-hidden');
-renderOrders();
+    renderSavedVenues();
+    renderCategories();
+    renderFilterPills();
+    applyCategoryUI();
+    syncCategoryButtons();
+    resetForm();
+    listSection.classList.add('view-hidden');
+    renderOrders();
+    document.querySelectorAll('.section-header').forEach(header => {
+
+      header.addEventListener('click', () => {
+
+        header.nextElementSibling.classList.toggle('hidden');
+
+      });
+
+    });
   </script>
 </body>
+
 </html>
