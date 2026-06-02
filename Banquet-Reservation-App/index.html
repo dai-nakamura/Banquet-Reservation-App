@@ -759,8 +759,7 @@
         font-size: 7.5pt;
         line-height: 1.15;
       }
-    }
-
+    
     .section-box {
       border: 1px solid var(--line);
       border-radius: 14px;
@@ -801,6 +800,107 @@
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+@media (max-width: 600px) {
+  .app {
+    padding: 10px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .sub {
+    display: none;
+  }
+
+  .header {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .action-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+  .action-row button {
+    white-space: nowrap;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  .card {
+    padding: 14px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+  }
+
+  .category-grid,
+  .grid-2,
+  .grid-3,
+  .grid-4,
+  .check-grid,
+  .family-list {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+
+  .today-summary {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .order-table,
+  .order-table thead,
+  .order-table tbody,
+  .order-table tr,
+  .order-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .order-table thead {
+    display: none;
+  }
+
+  .order-table tr {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+
+  .order-table td {
+    border-bottom: none;
+    padding: 4px 0;
+    white-space: normal;
+  }
+
+  .order-table td:nth-child(1)::before { content: "日付："; font-weight: 800; }
+  .order-table td:nth-child(2)::before { content: "区分："; font-weight: 800; }
+  .order-table td:nth-child(3)::before { content: "名前："; font-weight: 800; }
+  .order-table td:nth-child(4)::before { content: "会場："; font-weight: 800; }
+  .order-table td:nth-child(5)::before { content: "商品："; font-weight: 800; }
+  .order-table td:nth-child(6)::before { content: "状態："; font-weight: 800; }
+
+  .order-table td:nth-child(7) {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+}
 }
   </style>
 </head>
@@ -1573,8 +1673,6 @@ const removeBtn = node.querySelector('.remove-allergy-person-btn');
       const removeBtn = card.querySelector('.remove-item-btn');
       const itemName = card.querySelector('.item-name');
       if (presetType) itemType.value = presetType;
-     const itemHead = card.querySelector('.item-head');
-
 const itemHead = card.querySelector('.item-head');
 
 itemHead.addEventListener('click', (e) => {
