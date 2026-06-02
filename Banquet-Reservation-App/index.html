@@ -271,7 +271,7 @@
       font-size: 16px;
       font-weight: 800;
     }
-    .item-card.collapsed > :not(.itemihead) {
+    .item-card.collapsed > :not(.item-head) {
       display: none !important;
     }
 
@@ -965,7 +965,7 @@
           </select>
         </div>
         <div class="list" id="ordersList"></div>
-        <div class="order-detail-panel hidden" id="orderDetailPnel"></div>
+        <div class="order-detail-panel hidden" id="orderDetailPanel"></div>
       </section>
     </div>
   </div>
@@ -1280,7 +1280,7 @@
     const els = {
       categoryGrid: document.getElementById('categoryGrid'), orderDate: document.getElementById('orderDate'), orderTime: document.getElementById('orderTime'), clientName: document.getElementById('clientName'), venue: document.getElementById('venue'), guestCount: document.getElementById('guestCount'), coursePrice: document.getElementById('coursePrice'), status: document.getElementById('status'), orderNotes: document.getElementById('orderNotes'), afternoonTeaType: document.getElementById('afternoonTeaType'), guestCountWrap: document.getElementById('guestCountWrap'), coursePriceWrap: document.getElementById('coursePriceWrap'), afternoonTeaWrap: document.getElementById('afternoonTeaWrap'), nameLabel: document.getElementById('nameLabel'), addMasterAllergyBtn: document.getElementById('addMasterAllergyBtn'), masterAllergyArea: document.getElementById('masterAllergyArea'), itemsArea: document.getElementById('itemsArea'), addItemBtn: document.getElementById('addItemBtn'), addDessertBtn: document.getElementById('addDessertBtn'), addCakeBtn: document.getElementById('addCakeBtn'), addGiftBtn: document.getElementById('addGiftBtn'), orderForm: document.getElementById('orderForm'), submitBtn: document.getElementById('submitBtn'), stats: document.getElementById('stats'), filterPills: document.getElementById('filterPills'), searchInput: document.getElementById('searchInput'), sortSelect: document.getElementById('sortSelect'), ordersList: document.getElementById('ordersList'), importJsonInput: document.getElementById('importJsonInput'), importJsonBtn: document.getElementById('importJsonBtn'), exportBtn: document.getElementById('exportBtn'), printCardsBtn: document.getElementById('printCardsBtn'), taskModalBtn: document.getElementById('taskModalBtn'), monthlyReportBtn: document.getElementById('monthlyReportBtn'), resetFormBtn: document.getElementById('resetFormBtn'), clearAllBtn: document.getElementById('clearAllBtn'), itemTemplate: document.getElementById('itemTemplate'), allergyPersonTemplate: document.getElementById('allergyPersonTemplate'), savedVenueList: document.getElementById('savedVenueList'), printModal: document.getElementById('printModal'), printCardsArea: document.getElementById('printCardsArea'), runPrintBtn: document.getElementById('runPrintBtn'), closePrintBtn: document.getElementById('closePrintBtn'), taskModal: document.getElementById('taskModal'), taskDateFilter: document.getElementById('taskDateFilter'), taskCategoryFilter: document.getElementById('taskCategoryFilter'), taskTypeFilter: document.getElementById('taskTypeFilter'), taskListArea: document.getElementById('taskListArea'), closeTaskBtn: document.getElementById('closeTaskBtn'), reportModal: document.getElementById('reportModal'), reportMonthInput: document.getElementById('reportMonthInput'), runReportBtn: document.getElementById('runReportBtn'), closeReportBtn: document.getElementById('closeReportBtn'), reportSummary: document.getElementById('reportSummary'),
       allergyPersonTemplate:
-      document.getElementById('allergyPersonTenplate'),orderDetailPanel: document.getElementById('orderDetailPanel'),
+      document.getElementById('allergyPersonTemplate'),orderDetailPanel: document.getElementById('orderDetailPanel'),
     };
     const viewToggle = document.getElementById('viewToggle');
     const formSection = document.querySelector('.layout > section:first-child');
@@ -1562,12 +1562,7 @@ const removeBtn = node.querySelector('.remove-allergy-person-btn');
       wireItemCard(node, type);
       renumberItems();
     }
-const itemHead = card.querySelector('.item-head');
 
-itemHead.addEventListener('click', (e) => {
-  if (e.target.closest('button')) return;
-  card.classList.toggle('collapsed');
-});
     function wireItemCard(card, presetType = '') {
       const itemType = card.querySelector('.item-type');
       const cakeFields = card.querySelector('.cake-fields');
@@ -1578,7 +1573,14 @@ itemHead.addEventListener('click', (e) => {
       const removeBtn = card.querySelector('.remove-item-btn');
       const itemName = card.querySelector('.item-name');
       if (presetType) itemType.value = presetType;
-     
+     const itemHead = card.querySelector('.item-head');
+
+const itemHead = card.querySelector('.item-head');
+
+itemHead.addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+  card.classList.toggle('collapsed');
+});
       const updateItemUI = () => {
         syncCategoryButtons();
         const value = itemType.value;
@@ -1912,7 +1914,7 @@ function renderOrders() {
     row.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
 
-      const id = row.dataset.orderid;
+      const id = row.dataset.orderId;
       const order = loadOrders().find(o => o.id === id);
       if (!order) return;
 
