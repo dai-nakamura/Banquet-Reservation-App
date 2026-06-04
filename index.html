@@ -802,6 +802,70 @@
   flex-wrap: wrap;
   margin-top: 12px;
 }
+.title {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.sub {
+  display: none;
+}
+
+.header {
+  margin-bottom: 8px;
+}
+
+.header-actions {
+  position: relative;
+}
+
+.admin-menu {
+  position: absolute;
+  right: 0;
+  top: 48px;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+}
+
+@media (max-width: 600px) {
+  .title {
+    font-size: 15px;
+  }
+
+  .header {
+    align-items: center;
+  }
+
+  .header-actions button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .category-grid button {
+    font-size: 12px;
+    padding: 10px 4px;
+  }
+
+  .section-box {
+    margin-bottom: 8px;
+  }
+
+  .section-content {
+    padding: 10px;
+  }
+}
   </style>
 </head>
 
@@ -812,19 +876,20 @@
         <h1 class="title">宴会・婚礼予約入力 v7</h1>
         <div class="sub">UI維持 / アレルギー全体管理 / 旧データ自動変換 / 印刷ズレ修正版</div>
       </div>
-      <div class="action-row">
-        <input type="file" id="importJsonInput" accept=".json,application/json" hidden />
-        <button class="btn-light" id="importJsonBtn">JSON読み込み</button>
-        <button class="btn-light" id="exportBtn">JSON書き出し</button>
-        <button class="btn-light" id="printCardsBtn">カード作成</button>
-        <button class="btn-light" id="taskModalBtn">タスク確認</button>
-        <button class="btn-light" id="monthlyReportBtn">月末集計</button>
-        <button class="btn-light" id="resetFormBtn">入力リセット</button>
-        <button class="btn-danger" id="clearAllBtn">全件削除</button>
-        <button class="btn-light toggle-detail-btn">
-  詳細
-</button>
-      </div>
+<div class="action-row header-actions">
+  <button class="btn-light" id="printCardsBtn">カード</button>
+  <button class="btn-light" id="taskModalBtn">タスク</button>
+  <button class="btn-light" id="adminToggleBtn">管理</button>
+
+  <div class="admin-menu hidden" id="adminMenu">
+    <input type="file" id="importJsonInput" accept=".json,application/json" hidden />
+    <button class="btn-light" id="importJsonBtn">JSON読み込み</button>
+    <button class="btn-light" id="exportBtn">JSON書き出し</button>
+    <button class="btn-light" id="monthlyReportBtn">月末集計</button>
+    <button class="btn-light" id="resetFormBtn">入力リセット</button>
+    <button class="btn-danger" id="clearAllBtn">全件削除</button>
+  </div>
+</div>
     </div>
     <div class="pill-row" id="viewToggle">
       <button class="pill active" data-view="form">入力</button>
@@ -838,8 +903,7 @@
         <div class="field">
           <label class="label">カテゴリ</label>
           <div class="category-grid" id="categoryGrid"></div>
-          <div class="helper">ギフトは婚礼に統合済みです。婚礼の中で引き菓子・ギフト商品を追加できます。</div>
-        </div>
+         </div>
 
         <form id="orderForm" novalidate>
           <div class="section-box">
@@ -2321,7 +2385,9 @@ function renderOrders() {
     els.closeReportBtn.addEventListener('click', closeMonthlyReport);
     els.resetFormBtn.addEventListener('click', () => resetForm());
     els.clearAllBtn.addEventListener('click', clearAll);
-
+document.getElementById('adminToggleBtn').addEventListener('click', () => {
+  document.getElementById('adminMenu').classList.toggle('hidden');
+});
     renderSavedVenues();
     renderCategories();
     renderFilterPills();
