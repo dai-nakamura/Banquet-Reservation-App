@@ -1381,16 +1381,82 @@
     border-color: var(--dark);
   }
 }
+@media(max-width:600px){
+
+.section-box{
+  border:none;
+  background:none;
+  margin-bottom:6px;
+}
+
+.section-header{
+  padding:8px 0;
+  font-size:13px;
+  border-bottom:1px solid var(--line);
+  background:none;
+}
+
+.section-content{
+  padding:8px 0;
+}
+
+}
+
+@media(max-width:600px){
+
+.title{
+  display:none;
+}
+
+.sub{
+  display:none;
+}
+
+}
+.status-next-btn{
+  position:absolute;
+  right:8px;
+  bottom:8px;
+
+  width:34px;
+  height:34px;
+
+  border-radius:999px;
+  font-size:14px;
+}
+.allergy-toggle-label{
+  cursor:pointer;
+  font-size:14px;
+  font-weight:800;
+}
+
+.allergy-collapsed .allergy-wrapper{
+  display:none;
+}
+.item-detail-area.hidden{
+  display:none;
+}
+
+.detail-toggle-btn{
+  width:100%;
+  margin-top:6px;
+}
+
+@media(max-width:600px){
+
+  .detail-toggle-btn{
+    padding:8px;
+    font-size:12px;
+  }
+
+}
+
   </style>
 </head>
 
 <body>
   <div class="app">
     <div class="header">
-      <div>
-        <h1 class="title">宴会・婚礼予約入力 v7</h1>
-        <div class="sub">UI維持 / アレルギー全体管理 / 旧データ自動変換 / 印刷ズレ修正版</div>
-      </div>
 <div class="action-row header-actions">
   <button class="btn-light" id="printCardsBtn">カード</button>
   <button class="btn-light" id="taskModalBtn">タスク</button>
@@ -1489,7 +1555,12 @@
           </div>
 
           <div class="field">
-            <label class="label">アレルギー管理（予約全体）</label>
+            <label
+            class="label allergy-toggle-label"
+            id="allergyToggleBtn"
+          >
+            アレルギー管理（0名） ▼
+          </label>
             <div class="allergy-wrapper">
               <div class="allergy-person-head">
                 <div class="allergy-person-title">対象者一覧</div>
@@ -1528,7 +1599,7 @@
             <input type="date" id="fromDate" class="input" />
           </div>
 
-          <div class="date-range-sep">〜</div>
+          <div class="date-range-sep">～</div>
 
           <div class="field">
             <label class="label">終了日</label>
@@ -1626,8 +1697,8 @@
         <div class="item-title">商品 <span class="item-number"></span></div>
         <button type="button" class="btn-danger remove-item-btn">削除</button>
       </div>
-
-      <div class="grid-4">
+    <div class="item-detail-area">
+      <div class="grid-4 basic-item-foelds">
         <div class="field">
           <label class="label">商品区分</label>
           <select class="select item-type">
@@ -1699,8 +1770,15 @@
       </div>
 
       <div class="field">
+        <button
+  type="button"
+  class="btn-light detail-toggle-btn">
+  詳細設定 ▼
+</button>
+
         <label class="label">商品備考</label>
         <textarea class="textarea item-notes" placeholder="例：直接会場搬入 / 引き菓子として使用"></textarea>
+      </div>
       </div>
     </div>
   </template>
@@ -1868,8 +1946,42 @@
     const formSection = document.querySelector('.layout > section:first-child');
     const listSection = document.querySelector('.layout > section:last-child');
     const clearDateFilterBtn = document.getElementById('clearDateFilter');
-    function todayStr(offset = 0) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); }
-    function currentMonthStr() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; }
+    function todayStr(offset = 0) {
+  const d = new Date();
+
+  d.setDate(d.getDate() + offset);
+
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+
+  return `${y}-${m}-${day}`;
+}
+function updateAllergyCount() {
+
+const count =
+  document.querySelectorAll(
+    '#masterAllergyArea .allergy-person-card'
+  ).length;
+
+const btn =
+  document.getElementById(
+    'allergyToggleBtn'
+  );
+
+if (!btn) return;
+
+const isOpen =
+  !document.body.classList.contains(
+    'allergy-collapsed'
+  );
+
+btn.textContent =
+  `アレルギー管理（${count}名） ${
+    isOpen ? '▲' : '▼'
+  }`;
+}
+function currentMonthStr() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; }
     function isThisWeek(dateStr) { if (!dateStr) return false; const today = new Date(); today.setHours(0, 0, 0, 0); const target = new Date(dateStr + 'T00:00:00'); const diff = (target - today) / 86400000; return diff >= 0 && diff <= 6; }
     function escapeHtml(str = '') { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#039;'); }
     function migrateLegacyOrder(order) {
@@ -2077,6 +2189,7 @@ function addMasterAllergyPerson(data = null) {
   renumberAllergyPeople();
 
   node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  updateAllergyCount();
 }
 
     function renumberAllergyPeople() {
@@ -2109,7 +2222,7 @@ head.addEventListener('click', () => {
   node.classList.toggle('collapsed');
 });  
 const removeBtn = node.querySelector('.remove-allergy-person-btn');
-      removeBtn.addEventListener('click', () => { node.remove(); renumberAllergyPeople(); });
+      removeBtn.addEventListener('click', () => { node.remove(); renumberAllergyPeople(); updateAllergyCount();});
       [...node.querySelectorAll('.primary-allergen-check')].forEach(check => check.addEventListener('change', () => updateAllergySummary(node)));
 
       if (data) {
@@ -2163,6 +2276,12 @@ function addItem(type = '') {
       const squareWrap = card.querySelector('.square-size-wrap');
       const removeBtn = card.querySelector('.remove-item-btn');
       const itemName = card.querySelector('.item-name');
+      const detailBtn =
+  card.querySelector('.detail-toggle-btn');
+
+const detailArea =
+  card.querySelector('.item-detail-area');
+
       if (presetType) itemType.value = presetType;
       const itemHead = card.querySelector('.item-head');
   itemHead.addEventListener('click', (e) => {
@@ -2188,6 +2307,18 @@ function addItem(type = '') {
       const updateSquare = () => squareWrap.classList.toggle('hidden', cakeSize.value !== '四角');
       itemType.addEventListener('change', updateItemUI);
       cakeSize.addEventListener('change', updateSquare);
+      detailArea.classList.add('hidden');
+
+detailBtn.addEventListener('click',()=>{
+
+  detailArea.classList.toggle('hidden');
+
+  detailBtn.textContent =
+    detailArea.classList.contains('hidden')
+      ? '詳細設定 ▼'
+      : '詳細設定 ▲';
+
+});
       removeBtn.addEventListener('click', () => { card.remove(); renumberItems(); });
       updateItemUI(); updateSquare();
       if (selectedCategory === 'アフタヌーンティー') {
@@ -2483,6 +2614,12 @@ function renderOrders() {
 
         return `
           <article class="order-mini-card" data-edit="${order.id}">
+            <button
+  class="status-next-btn"
+  data-next="${order.id}"
+>
+▶
+</button>
             <div class="order-mini-date">
               ${escapeHtml(formatShortDate(order.date))}
               ${order.time ? escapeHtml(order.time) : ''}
@@ -2520,6 +2657,21 @@ function renderOrders() {
       editOrder(card.dataset.edit);
     });
   });
+  document
+.querySelectorAll('[data-next]')
+.forEach(btn => {
+
+  btn.addEventListener('click',(e)=>{
+
+    e.stopPropagation();
+
+    advanceStatus(
+      btn.dataset.next
+    );
+
+  });
+
+});
 }
     function deleteOrder(id) {
       if (!window.confirm('この注文を削除しますか？')) return;
