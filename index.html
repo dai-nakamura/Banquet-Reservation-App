@@ -1450,7 +1450,76 @@
   }
 
 }
+@media(max-width:600px){
 
+  .app{
+    padding:4px;
+  }
+
+  .card{
+    padding:8px;
+    border-radius:12px;
+  }
+
+  .section-title{
+    display:none;
+  }
+
+  .category-grid{
+    margin-bottom:4px;
+  }
+
+  .basic-compact{
+    padding:6px 0;
+  }
+
+  .basic-compact .grid-3,
+  .basic-compact .grid-2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:5px;
+  }
+
+  .basic-compact .field{
+    margin-bottom:5px;
+  }
+
+  .basic-compact .label{
+    font-size:10px;
+    margin-bottom:2px;
+  }
+
+  .basic-compact .input,
+  .basic-compact .select{
+    min-height:34px;
+    padding:6px 8px;
+    font-size:13px;
+    border-radius:8px;
+  }
+
+  #basicInfoSection .grid-3:first-child .field:nth-child(3){
+    grid-column:1 / -1;
+  }
+
+  #basicInfoSection .grid-3:nth-child(2) .field:nth-child(1){
+    grid-column:1 / -1;
+  }
+
+  #status{
+    grid-column:1 / -1;
+  }
+
+  #orderNotes{
+    min-height:38px;
+  }
+}
+.today-summary {
+  cursor: pointer;
+}
+
+.today-summary:active {
+  transform: scale(0.98);
+}
   </style>
 </head>
 
@@ -1578,6 +1647,7 @@
               <button type="button" class="btn-light" id="addCakeBtn">＋ ケーキ</button>
               <button type="button" class="btn-light" id="addGiftBtn">＋ ギフト</button>
             </div>
+            </div>
            
           <div class="items-area" id="itemsArea"></div>
           <div class="button-row" style="margin-top: 14px;">
@@ -1697,8 +1767,13 @@
         <div class="item-title">商品 <span class="item-number"></span></div>
         <button type="button" class="btn-danger remove-item-btn">削除</button>
       </div>
+              <button
+  type="button"
+  class="btn-light detail-toggle-btn">
+  詳細設定 ▼
+</button>
     <div class="item-detail-area">
-      <div class="grid-4 basic-item-foelds">
+      <div class="grid-4 basic-item-fields">
         <div class="field">
           <label class="label">商品区分</label>
           <select class="select item-type">
@@ -1731,6 +1806,7 @@
           <select class="select cake-size">
             <option value="">未選択</option>
             <option>9cm</option>
+            <option>4号</option>
             <option>5号</option>
             <option>6号</option>
             <option>7号</option>
@@ -1770,11 +1846,7 @@
       </div>
 
       <div class="field">
-        <button
-  type="button"
-  class="btn-light detail-toggle-btn">
-  詳細設定 ▼
-</button>
+
 
         <label class="label">商品備考</label>
         <textarea class="textarea item-notes" placeholder="例：直接会場搬入 / 引き菓子として使用"></textarea>
@@ -2276,19 +2348,21 @@ function addItem(type = '') {
       const squareWrap = card.querySelector('.square-size-wrap');
       const removeBtn = card.querySelector('.remove-item-btn');
       const itemName = card.querySelector('.item-name');
-      const detailBtn =
+const itemHead = card.querySelector('.item-head');
+
+itemHead.addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+
+  card.classList.toggle('collapsed');
+});
+   const detailBtn =
   card.querySelector('.detail-toggle-btn');
 
 const detailArea =
   card.querySelector('.item-detail-area');
 
       if (presetType) itemType.value = presetType;
-      const itemHead = card.querySelector('.item-head');
-  itemHead.addEventListener('click', (e) => {
-    if (e.target.closest('button')) return;
-    card.classList.toggle('collapsed');
-  });
-
+ 
       const updateItemUI = () => {
         syncCategoryButtons();
         const value = itemType.value;
@@ -2319,7 +2393,11 @@ detailBtn.addEventListener('click',()=>{
       : '詳細設定 ▲';
 
 });
-      removeBtn.addEventListener('click', () => { card.remove(); renumberItems(); });
+   removeBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  card.remove();
+  renumberItems();
+});
       updateItemUI(); updateSquare();
       if (selectedCategory === 'アフタヌーンティー') {
         card.querySelector('.item-type').value = 'アフタヌーンティー';
@@ -2536,19 +2614,18 @@ const matchListMode =
 
       return orders;
     }
-    function renderStats() {
-      const orders = loadOrders();
-      const today = orders.filter(o => o.date === todayStr(0));
-      const unfinished = today.filter(o => o.status !== '納品済み');
+  function renderStats() {
+  const orders = loadOrders();
+  const today = orders.filter(o => o.date === todayStr(0));
+  const unfinished = today.filter(o => o.status !== '納品済み');
 
-      const allergyCount = today.reduce((sum, o) => {
-        return sum + (o.allergyMaster?.people?.length || 0);
-      }, 0);
+  const allergyCount = today.reduce((sum, o) => {
+    return sum + (o.allergyMaster?.people?.length || 0);
+  }, 0);
 
-      document.getElementById('todaySummary').innerHTML =
-        `本日予約 ${today.length}件　未完了 ${unfinished.length}件　アレルギー ${allergyCount}名`;
-    }
-
+  document.getElementById('todaySummary').innerHTML =
+    `本日予約 ${today.length}件　未完了 ${unfinished.length}件　アレルギー ${allergyCount}名`;
+}
     function orderTotalCost(order) { return (order.items || []).reduce((sum, item) => sum + (Number(item.cost) || 0), 0); }
 function showOrderDetail(order) {
   els.orderDetailPanel.classList.remove('hidden');
@@ -3087,6 +3164,23 @@ els.listModeRow.addEventListener('click', (e) => {
 });
     document.getElementById('adminToggleBtn').addEventListener('click', () => {
   document.getElementById('adminMenu').classList.toggle('hidden');
+});
+document.getElementById('todaySummary').addEventListener('click', () => {
+  activeFilter = '今日';
+
+  renderFilterPills();
+  renderOrders();
+
+  viewToggle
+    .querySelector('[data-view="list"]')
+    .click();
+
+  setTimeout(() => {
+    els.ordersList.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }, 50);
 });
     renderSavedVenues();
     renderCategories();
