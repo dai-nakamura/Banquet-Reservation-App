@@ -2771,7 +2771,7 @@ function renderOrders() {
       if (!(order.allergyMaster?.people || []).length) addMasterAllergyPerson();
       (order.items || []).forEach(item => {
         addItem(item.type || 'その他');
-        const card = els.itemsArea.lastElementChild;
+        const card = els.itemsArea.firstElementChild;
         card.querySelector('.item-type').value = item.type || 'その他';
         card.querySelector('.item-name').value = item.name || '';
         card.querySelector('.item-quantity').value = item.quantity || 1;
