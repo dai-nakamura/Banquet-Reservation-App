@@ -1787,6 +1787,17 @@
           </select>
         </div>
         <div class="field">
+  <label class="label">集計区分</label>
+  <select class="select report-type">
+    <option value="">通常集計</option>
+    <option value="ブライダル試食">ブライダル試食</option>
+    <option value="社内試食">社内試食</option>
+    <option value="撮影・取材">撮影・取材</option>
+    <option value="サービス">サービス</option>
+    <option value="集計対象外">集計対象外</option>
+  </select>
+</div>
+        <div class="field">
           <label class="label">商品名</label>
           <input class="input item-name" placeholder="例：季節の皿盛り / いちごショート" />
         </div>
@@ -2116,7 +2127,12 @@ function currentMonthStr() { const now = new Date(); return `${now.getFullYear()
     function normalizeImportedItem(item = {}) {
       return {
         type: item.type || 'その他',
-        name: item.name || '',
+ reportType:
+  item.reportType ||
+  (/ブライダル.*試食|婚礼.*試食/.test(item.name || '')
+    ? 'ブライダル試食'
+    : ''),
+            name: item.name || '',
         quantity: Number(item.quantity || 1),
         cost: Number(item.cost || 0),
         size: item.size || '',
@@ -2466,8 +2482,9 @@ detailBtn.addEventListener('click',()=>{
         const options = [...card.querySelectorAll('.option-check:checked')].map(el => el.value);
         const freeOption = card.querySelector('.option-free').value.trim();
         if (freeOption) options.push(freeOption);
-        return {
+      return {
           type: card.querySelector('.item-type').value,
+          reportType: card.querySelector('.report-type').value,
           name: card.querySelector('.item-name').value.trim(),
           quantity: Number(card.querySelector('.item-quantity').value || 1),
           cost: Number(card.querySelector('.item-cost').value || 0),
@@ -2773,6 +2790,7 @@ function renderOrders() {
         addItem(item.type || 'その他');
         const card = els.itemsArea.firstElementChild;
         card.querySelector('.item-type').value = item.type || 'その他';
+       card.querySelector('.report-type').value = item.reportType || '';
         card.querySelector('.item-name').value = item.name || '';
         card.querySelector('.item-quantity').value = item.quantity || 1;
         card.querySelector('.item-cost').value = item.cost || '';
@@ -2955,7 +2973,32 @@ function renderOrders() {
       }));
     }
     function openTaskModal() { renderTaskModal(); els.taskModal.classList.remove('hidden'); }
-    function closeTaskModal() { els.taskModal.classList.add('hidden'); }
+   
+   function getItemSizes(item) {
+  const sizes = [];
+
+  // 通常サイズ
+  if (item.size) {
+    sizes.push(item.size.trim());
+  }
+
+  // 段構成・複数サイズ
+  if (item.multiSize) {
+    item.multiSize
+      .split(/[＋+\s、,／/]+/)
+      .map(size => size.trim())
+      .filter(Boolean)
+      .forEach(size => sizes.push(size));
+  }
+
+  if (!sizes.length) {
+    sizes.push('サイズ未入力');
+  }
+
+  // 重複は消さない
+  // 7号 7号 5号なら、7号を2段として集計する
+  return sizes;
+} function closeTaskModal() { els.taskModal.classList.add('hidden'); }
     function buildMonthlyReport(monthStr) {
       const [year, month] = monthStr.split('-').map(Number);
 
@@ -2974,7 +3017,12 @@ function renderOrders() {
         sizeCount: {},
         itemTypeCount: {},
         optionCount: {},
-        customerCount: {}
+        customerCount: {},
+        weddingVenueCount: {},
+              weddingVenueSizeCount: {},
+              weddingCakeDetailCount: {},
+anniversaryCakeDetailCount: {},
+        specialReportCount: {},
       };
 
       orders.forEach(order => {
@@ -2986,19 +3034,74 @@ function renderOrders() {
           const cost = Number(item.cost || 0);
 
           result.totalCost += cost * qty;
-          result.itemTypeCount[item.type || '未分類'] = (result.itemTypeCount[item.type || '未分類'] || 0) + qty;
+const cakeTypes = [
+  'ウエディングケーキ',
+  'ウェディングケーキ',
+  'ホールケーキ',
+  'アニバーサリーケーキ'
+];
 
-          const sizeText = item.multiSize || item.size || '';
+const isCake = cakeTypes.includes(item.type);
+const venue = order.venue || '場所未入力';
+const cakeName = item.name || item.type || 'ケーキ名未入力';
+const sizes = getItemSizes(item);
 
-          if (sizeText) {
-            sizeText
-              .split(/[＋+\s、,／/]+/)
-              .map(s => s.trim())
-              .filter(Boolean)
-              .forEach(size => {
-                result.sizeCount[size] = (result.sizeCount[size] || 0) + qty;
-              });
-          }
+/* 婚礼ケーキ */
+if (order.category === '婚礼' && isCake) {
+  result.weddingVenueCount[venue] =
+    (result.weddingVenueCount[venue] || 0) + qty;
+
+  sizes.forEach(size => {
+    // 従来の会場・サイズ別
+    const venueSizeKey = `${venue}｜${size}`;
+
+    result.weddingVenueSizeCount[venueSizeKey] =
+      (result.weddingVenueSizeCount[venueSizeKey] || 0) + qty;
+
+    // 会場・ケーキ名・サイズ別
+    const detailKey = `${venue}｜${cakeName}｜${size}`;
+
+    result.weddingCakeDetailCount[detailKey] =
+      (result.weddingCakeDetailCount[detailKey] || 0) + qty;
+  });
+}
+
+/* アニバーサリーケーキ */
+if (order.category === 'アニバーサリー' && isCake) {
+  sizes.forEach(size => {
+    const detailKey = `${venue}｜${cakeName}｜${size}`;
+
+    result.anniversaryCakeDetailCount[detailKey] =
+      (result.anniversaryCakeDetailCount[detailKey] || 0) + qty;
+  });
+}
+          const reportType = item.reportType || '';
+
+if (reportType === '集計対象外') {
+  // 数量集計には入れない
+} else if (reportType) {
+  result.specialReportCount[reportType] =
+    (result.specialReportCount[reportType] || 0) + qty;
+} else {
+  result.itemTypeCount[item.type || '未分類'] =
+    (result.itemTypeCount[item.type || '未分類'] || 0) + qty;
+}
+   const isWeddingOrAnniversaryCake =
+  isCake &&
+  (
+    order.category === '婚礼' ||
+    order.category === 'アニバーサリー'
+  );
+
+// 婚礼・アニバーサリー以外のサイズだけを集計
+if (!isWeddingOrAnniversaryCake) {
+  getItemSizes(item).forEach(size => {
+    if (size === 'サイズ未入力') return;
+
+    result.sizeCount[size] =
+      (result.sizeCount[size] || 0) + qty;
+  });
+}
 
           (item.options || []).forEach(opt => {
             result.optionCount[opt] = (result.optionCount[opt] || 0) + 1;
@@ -3024,7 +3127,33 @@ function renderOrders() {
         <div class="grid-2">
           <div class="report-card"><div class="report-title">カテゴリ別</div>${mapToRows(report.categoryCount, '件')}</div>
           <div class="report-card"><div class="report-title">商品区分別数量</div>${mapToRows(report.itemTypeCount, '点')}</div>
-          <div class="report-card"><div class="report-title">サイズ別数量</div>${mapToRows(report.sizeCount, '台')}</div>
+<div class="report-card">
+  <div class="report-title">婚礼ケーキ・会場別台数</div>
+  ${mapToRows(report.weddingVenueCount, '台')}
+</div>
+<div class="report-card">
+  <div class="report-title">婚礼ケーキ・会場別サイズ台数</div>
+  ${mapToRows(report.weddingVenueSizeCount, '台')}
+</div>
+
+<div class="report-card">
+  <div class="report-title">特別用途別数量</div>
+  ${mapToRows(report.specialReportCount, '点')}
+</div>
+<div class="report-card">
+  <div class="report-title">
+    婚礼ケーキ・会場／商品名／サイズ別
+  </div>
+  ${mapToRows(report.weddingCakeDetailCount, '台')}
+</div>
+
+<div class="report-card">
+  <div class="report-title">
+    アニバーサリー・場所／商品名／サイズ別
+  </div>
+  ${mapToRows(report.anniversaryCakeDetailCount, '台')}
+</div>
+          <div class="report-card"><div class="report-title">その他商品のサイズ別数量</div>${mapToRows(report.sizeCount, '台')}</div>
           <div class="report-card"><div class="report-title">オプション使用回数</div>${mapToRows(report.optionCount, '回')}</div>
           <div class="report-card" style="grid-column:1 / -1;"><div class="report-title">顧客別件数</div>${mapToRows(report.customerCount, '件')}</div>
         </div>`;
