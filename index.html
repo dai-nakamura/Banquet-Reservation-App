@@ -2671,6 +2671,10 @@ function showOrderDetail(order) {
       <button class="btn-dark" id="detailEditBtn">
         編集
       </button>
+
+      <button class="btn-danger" id="detailDeleteBtn">
+        削除
+      </button>
     </div>
   `;
 
@@ -2678,6 +2682,13 @@ function showOrderDetail(order) {
     .getElementById('detailEditBtn')
     .addEventListener('click', () => {
       editOrder(order.id);
+    });
+
+  document
+    .getElementById('detailDeleteBtn')
+    .addEventListener('click', () => {
+      deleteOrder(order.id);
+      els.orderDetailPanel.classList.add('hidden');
     });
 }
 function renderOrders() {
@@ -2746,11 +2757,17 @@ function renderOrders() {
     </div>
   `;
 
-  [...els.ordersList.querySelectorAll('[data-edit]')].forEach(card => {
-    card.addEventListener('click', () => {
-      editOrder(card.dataset.edit);
-    });
+[...els.ordersList.querySelectorAll('[data-edit]')].forEach(card => {
+  card.addEventListener('click', () => {
+
+    const order = loadOrders()
+      .find(o => o.id === card.dataset.edit);
+
+    if (!order) return;
+
+    showOrderDetail(order);
   });
+});
   document
 .querySelectorAll('[data-next]')
 .forEach(btn => {
