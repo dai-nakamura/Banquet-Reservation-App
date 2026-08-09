@@ -1617,6 +1617,72 @@
               </select>
             </div>
           </div>
+          <div class="section-box hidden" id="weddingDocumentsWrap">
+  <div class="section-header">
+    婚礼書類管理
+  </div>
+
+  <div class="section-content">
+    <div class="grid-2">
+      <div class="field">
+        <label class="label">婚礼日の10日前</label>
+        <input
+          class="input"
+          type="date"
+          id="weddingTenDaysDate"
+          readonly
+        />
+      </div>
+
+      <div class="field">
+        <label class="label">書類確認状況</label>
+
+        <div class="check-grid">
+          <label class="check-pill">
+            <input
+              type="checkbox"
+              id="weddingConstructionChecked"
+            />
+            施工日資料
+          </label>
+
+          <label class="check-pill">
+            <input
+              type="checkbox"
+              id="weddingTenDaysChecked"
+            />
+            10日前資料
+          </label>
+
+          <label class="check-pill">
+            <input
+              type="checkbox"
+              id="weddingMenuChecked"
+            />
+            メニュー表
+          </label>
+
+          <label class="check-pill">
+            <input
+              type="checkbox"
+              id="weddingCakeSlipChecked"
+            />
+            ケーキ食伝
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">婚礼書類メモ</label>
+      <textarea
+        class="textarea"
+        id="weddingDocumentNotes"
+        placeholder="例：メニュー表未着／ケーキ食伝のサイズ確認待ち"
+      ></textarea>
+    </div>
+  </div>
+</div>
 
           <div class="field">
             <label class="label">全体備考</label>
@@ -2038,6 +2104,27 @@
     const formSection = document.querySelector('.layout > section:first-child');
     const listSection = document.querySelector('.layout > section:last-child');
     const clearDateFilterBtn = document.getElementById('clearDateFilter');
+    const weddingEls = {
+  wrap: document.getElementById('weddingDocumentsWrap'),
+
+  tenDaysDate:
+    document.getElementById('weddingTenDaysDate'),
+
+  constructionChecked:
+    document.getElementById('weddingConstructionChecked'),
+
+  tenDaysChecked:
+    document.getElementById('weddingTenDaysChecked'),
+
+  menuChecked:
+    document.getElementById('weddingMenuChecked'),
+
+  cakeSlipChecked:
+    document.getElementById('weddingCakeSlipChecked'),
+
+  notes:
+    document.getElementById('weddingDocumentNotes')
+};
     function todayStr(offset = 0) {
   const d = new Date();
 
@@ -2048,6 +2135,30 @@
   const day = String(d.getDate()).padStart(2, '0');
 
   return `${y}-${m}-${day}`;
+}
+function dateOffsetStr(dateStr, offsetDays) {
+  if (!dateStr) return '';
+
+  const date = new Date(`${dateStr}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) return '';
+
+  date.setDate(date.getDate() + offsetDays);
+
+  const year = date.getFullYear();
+  const month =
+    String(date.getMonth() + 1).padStart(2, '0');
+  const day =
+    String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function updateWeddingTenDaysDate() {
+  weddingEls.tenDaysDate.value =
+    selectedCategory === '婚礼'
+      ? dateOffsetStr(els.orderDate.value, -10)
+      : '';
 }
 function updateAllergyCount() {
 
@@ -2177,14 +2288,48 @@ function currentMonthStr() { const now = new Date(); return `${now.getFullYear()
   [...statusFlow, 'キャンセル'].includes(migrated.status)
     ? migrated.status
     : '未確認',
+ 
 
 cancelledAt: migrated.cancelledAt || '',
         afternoonTeaType: migrated.afternoonTeaType || '',
         orderNotes: migrated.orderNotes || '',
+           weddingDocuments: {
+  tenDaysDate:
+    migrated.weddingDocuments?.tenDaysDate ||
+    (
+      migrated.category === '婚礼'
+        ? dateOffsetStr(migrated.date, -10)
+        : ''
+    ),
+
+  constructionChecked:
+    Boolean(
+      migrated.weddingDocuments?.constructionChecked
+    ),
+
+  tenDaysChecked:
+    Boolean(
+      migrated.weddingDocuments?.tenDaysChecked
+    ),
+
+  menuChecked:
+    Boolean(
+      migrated.weddingDocuments?.menuChecked
+    ),
+
+  cakeSlipChecked:
+    Boolean(
+      migrated.weddingDocuments?.cakeSlipChecked
+    ),
+
+  notes:
+    migrated.weddingDocuments?.notes || ''
+},
         allergyMaster: migrated.allergyMaster || { people: [] },
         items: rawItems.map(item => {
           const { allergyPeople, ...rest } = item;
           return rest;
+          
         })
       };
     }
@@ -2262,7 +2407,13 @@ cancelledAt: migrated.cancelledAt || '',
       else if (selectedCategory === 'アニバーサリー') els.nameLabel.textContent = '名前 / 予約名';
       else if (selectedCategory === 'アフタヌーンティー') els.nameLabel.textContent = '予約名';
       else els.nameLabel.textContent = '宴会名 / 名前';
-    }
+  weddingEls.wrap.classList.toggle(
+  'hidden',
+  selectedCategory !== '婚礼'
+);
+
+updateWeddingTenDaysDate();
+      }
     function syncCategoryButtons() {
       els.addDessertBtn.style.display = (selectedCategory === '宴会' || selectedCategory === '婚礼') ? '' : 'none';
       els.addGiftBtn.style.display = selectedCategory === '婚礼' ? '' : 'none';
@@ -2525,7 +2676,29 @@ detailBtn.addEventListener('click',()=>{
         status: els.status.value,
         afternoonTeaType: els.afternoonTeaType.value,
         orderNotes: els.orderNotes.value.trim(),
-        allergyMaster: collectAllergyMaster(),
+       weddingDocuments:
+  selectedCategory === '婚礼'
+    ? {
+        tenDaysDate:
+          weddingEls.tenDaysDate.value,
+
+        constructionChecked:
+          weddingEls.constructionChecked.checked,
+
+        tenDaysChecked:
+          weddingEls.tenDaysChecked.checked,
+
+        menuChecked:
+          weddingEls.menuChecked.checked,
+
+        cakeSlipChecked:
+          weddingEls.cakeSlipChecked.checked,
+
+        notes:
+          weddingEls.notes.value.trim()
+      }
+    : null,
+         allergyMaster: collectAllergyMaster(),
         items: collectItems()
       };
     }
@@ -2554,6 +2727,13 @@ detailBtn.addEventListener('click',()=>{
       els.coursePrice.value = keep?.coursePrice || '';
       els.status.value = keep?.status || '未確認';
       els.orderNotes.value = '';
+      weddingEls.constructionChecked.checked = false;
+weddingEls.tenDaysChecked.checked = false;
+weddingEls.menuChecked.checked = false;
+weddingEls.cakeSlipChecked.checked = false;
+weddingEls.notes.value = '';
+
+updateWeddingTenDaysDate();
       els.afternoonTeaType.value = keep?.afternoonTeaType || '';
       addMasterAllergyPerson();
       if (selectedCategory === 'アニバーサリー') addItem('アニバーサリーケーキ');
@@ -2998,6 +3178,27 @@ function restoreOrder(id) {
         card.querySelector('.option-free').value = freeOptions.join(' / ');
         card.querySelector('.item-type').dispatchEvent(new Event('change'));
         card.querySelector('.cake-size').dispatchEvent(new Event('change'));
+      const weddingDocuments =
+  order.weddingDocuments || {};
+
+weddingEls.tenDaysDate.value =
+  weddingDocuments.tenDaysDate ||
+  dateOffsetStr(order.date, -10);
+
+weddingEls.constructionChecked.checked =
+  Boolean(weddingDocuments.constructionChecked);
+
+weddingEls.tenDaysChecked.checked =
+  Boolean(weddingDocuments.tenDaysChecked);
+
+weddingEls.menuChecked.checked =
+  Boolean(weddingDocuments.menuChecked);
+
+weddingEls.cakeSlipChecked.checked =
+  Boolean(weddingDocuments.cakeSlipChecked);
+
+weddingEls.notes.value =
+  weddingDocuments.notes || '';
       });
       closePrintCards(); closeMonthlyReport(); closeTaskModal(); window.scrollTo({ top: 0, behavior: 'smooth' });
       viewToggle
@@ -3472,6 +3673,10 @@ if (!isWeddingOrAnniversaryCake) {
     els.closeReportBtn.addEventListener('click', closeMonthlyReport);
     els.resetFormBtn.addEventListener('click', () => resetForm());
     els.clearAllBtn.addEventListener('click', clearAll);
+    els.orderDate.addEventListener(
+  'change',
+  updateWeddingTenDaysDate
+);
 els.listModeRow.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-mode]');
   if (!btn) return;
