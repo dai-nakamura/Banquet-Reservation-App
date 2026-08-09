@@ -1200,7 +1200,7 @@
 }
 .list-mode-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -1658,9 +1658,18 @@
 
       <section class="card">
         <h2 class="section-title">一覧</h2>
-        <div class="list-mode-row" id="listModeRow">
-  <button type="button" class="list-mode-btn active" data-mode="active">進行中</button>
-  <button type="button" class="list-mode-btn" data-mode="delivered">納品済み</button>
+<div class="list-mode-row" id="listModeRow">
+  <button type="button" class="list-mode-btn active" data-mode="active">
+    進行中
+  </button>
+
+  <button type="button" class="list-mode-btn" data-mode="delivered">
+    納品済み
+  </button>
+
+  <button type="button" class="list-mode-btn" data-mode="cancelled">
+    キャンセル
+  </button>
 </div>
         <div class="pill-row" id="filterPills"></div>
         <div class="date-range-row">
@@ -2164,7 +2173,12 @@ function currentMonthStr() { const now = new Date(); return `${now.getFullYear()
         venue: migrated.venue || '',
         guestCount: Number(migrated.guestCount || 0),
         coursePrice: Number(migrated.coursePrice || 0),
-        status: statusFlow.includes(migrated.status) ? migrated.status : '未確認',
+        status:
+  [...statusFlow, 'キャンセル'].includes(migrated.status)
+    ? migrated.status
+    : '未確認',
+
+cancelledAt: migrated.cancelledAt || '',
         afternoonTeaType: migrated.afternoonTeaType || '',
         orderNotes: migrated.orderNotes || '',
         allergyMaster: migrated.allergyMaster || { people: [] },
@@ -2547,24 +2561,66 @@ detailBtn.addEventListener('click',()=>{
       else addItem('皿盛りデザート');
     }
 
-    function handleSubmit(event) {
-      event.preventDefault();
-      const data = getOrderData();
-      const error = validateOrder(data);
-      if (error) return window.alert(error);
-      const orders = loadOrders().filter(order => order.status !== 'キャンセル');
-      if (editingId) {
-        const index = orders.findIndex(order => order.id === editingId);
-        if (index !== -1) orders[index] = { ...orders[index], ...data };
-      } else {
-        orders.push({ id: `${Date.now()}-${Math.floor(Math.random() * 1000)}`, createdAt: Date.now(), ...data });
-      }
-      saveOrders(orders);
-      saveVenueMemory(data.venue);
-      resetForm({ category: selectedCategory, date: data.date, time: data.time, clientName: data.clientName, venue: data.venue, guestCount: data.guestCount, coursePrice: data.coursePrice, status: data.status, afternoonTeaType: data.afternoonTeaType });
-      renderOrders();
-      window.alert(editingId ? '更新しました。' : '登録しました。');
+   function handleSubmit(event) {
+  event.preventDefault();
+
+  const data = getOrderData();
+  const error = validateOrder(data);
+
+  if (error) {
+    window.alert(error);
+    return;
+  }
+
+  // resetForm前に編集状態を保存
+  const wasEditing = Boolean(editingId);
+
+  // キャンセル済みも含め、全データを読み込む
+  const orders = loadOrders();
+
+  if (wasEditing) {
+    const index = orders.findIndex(order => order.id === editingId);
+
+    if (index === -1) {
+      window.alert('更新対象の予約が見つかりません。');
+      return;
     }
+
+    orders[index] = {
+      ...orders[index],
+      ...data
+    };
+  } else {
+    orders.push({
+      id: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: Date.now(),
+      ...data
+    });
+  }
+
+  saveOrders(orders);
+  saveVenueMemory(data.venue);
+
+  resetForm({
+    category: selectedCategory,
+    date: data.date,
+    time: data.time,
+    clientName: data.clientName,
+    venue: data.venue,
+    guestCount: data.guestCount,
+    coursePrice: data.coursePrice,
+    status: data.status,
+    afternoonTeaType: data.afternoonTeaType
+  });
+
+  renderOrders();
+
+  window.alert(
+    wasEditing
+      ? '更新しました。'
+      : '登録しました。'
+  );
+}
 
     function renderFilterPills() {
       els.filterPills.innerHTML = filters.map(filter => `<button type="button" class="pill ${filter === activeFilter ? 'active' : ''}" data-filter="${filter}">${filter}</button>`).join('');
@@ -2606,8 +2662,10 @@ detailBtn.addEventListener('click',()=>{
         const matchDateRange = isInRange(order.date);
 const matchListMode =
   activeListMode === 'active'
-    ? order.status !== '納品済み'
-    : order.status === '納品済み';
+    ? !['納品済み', 'キャンセル'].includes(order.status)
+    : activeListMode === 'delivered'
+      ? order.status === '納品済み'
+      : order.status === 'キャンセル';
         const allergyText = (order.allergyMaster?.people || [])
           .map(p => [p.personName, p.primary?.join(' '), p.finalNg, p.note].join(' '))
           .join(' ');
@@ -2647,6 +2705,8 @@ const matchListMode =
 function showOrderDetail(order) {
   els.orderDetailPanel.classList.remove('hidden');
 
+  const isCancelled = order.status === 'キャンセル';
+
   els.orderDetailPanel.innerHTML = `
     <div class="order-detail-title">
       ${escapeHtml(order.clientName)}
@@ -2667,42 +2727,71 @@ function showOrderDetail(order) {
       ステータス：${escapeHtml(order.status)}
     </div>
 
+    ${
+      isCancelled && order.cancelledAt
+        ? `
+          <div class="meta">
+            キャンセル日時：
+            ${escapeHtml(
+              new Date(order.cancelledAt).toLocaleString('ja-JP')
+            )}
+          </div>
+        `
+        : ''
+    }
+
     <div class="order-detail-actions">
-      <button class="btn-dark" id="detailEditBtn">
-        編集
-      </button>
-        <button class="btn-secondary" id="detailCancelBtn">
+      ${
+        isCancelled
+          ? `
+            <button class="btn-dark" id="detailRestoreBtn">
+              進行中に戻す
+            </button>
+          `
+          : `
+            <button class="btn-dark" id="detailEditBtn">
+              編集
+            </button>
 
-    キャンセル
-
-  </button>
+            <button class="btn-warning" id="detailCancelBtn">
+              キャンセル
+            </button>
+          `
+      }
 
       <button class="btn-danger" id="detailDeleteBtn">
-        削除
+        完全削除
       </button>
     </div>
   `;
 
-  document
-    .getElementById('detailEditBtn')
-    .addEventListener('click', () => {
+  const editBtn = document.getElementById('detailEditBtn');
+  const cancelBtn = document.getElementById('detailCancelBtn');
+  const restoreBtn = document.getElementById('detailRestoreBtn');
+  const deleteBtn = document.getElementById('detailDeleteBtn');
+
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
       editOrder(order.id);
     });
-document
+  }
 
-  .getElementById('detailCancelBtn')
-
-  .addEventListener('click', () => {
-
-    cancelOrder(order.id);
-
-  })
-  document
-    .getElementById('detailDeleteBtn')
-    .addEventListener('click', () => {
-      deleteOrder(order.id);
-      els.orderDetailPanel.classList.add('hidden');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      cancelOrder(order.id);
     });
+  }
+
+  if (restoreBtn) {
+    restoreBtn.addEventListener('click', () => {
+      restoreOrder(order.id);
+    });
+  }
+
+  deleteBtn.addEventListener('click', () => {
+    deleteOrder(order.id);
+    els.orderDetailPanel.classList.add('hidden');
+  });
 }
 function renderOrders() {
   const all = loadOrders();
@@ -2732,12 +2821,20 @@ function renderOrders() {
 
         return `
           <article class="order-mini-card" data-edit="${order.id}">
-            <button
-  class="status-next-btn"
-  data-next="${order.id}"
->
-▶
-</button>
+   ${
+  order.status !== 'キャンセル'
+    ? `
+      <button
+        type="button"
+        class="status-next-btn"
+        data-next="${order.id}"
+        aria-label="次のステータスへ進める"
+      >
+        ▶
+      </button>
+    `
+    : ''
+}
             <div class="order-mini-date">
               ${escapeHtml(formatShortDate(order.date))}
               ${order.time ? escapeHtml(order.time) : ''}
@@ -2803,19 +2900,41 @@ function renderOrders() {
       renderOrders();
     }
 
-    function advanceStatus(id) {
-       const orders = loadOrders().filter(order => order.status !== 'キャンセル');const index = orders.findIndex(order => order.id === id); if (index === -1) return;
-      const now = statusFlow.indexOf(orders[index].status); orders[index].status = statusFlow[Math.min(now + 1, statusFlow.length - 1)] || '未確認'; saveOrders(orders); renderOrders();
-    }
+function advanceStatus(id) {
+  const orders = loadOrders();
+  const index = orders.findIndex(order => order.id === id);
+
+  if (index === -1) return;
+
+  // キャンセル済みは▶ボタンで進めない
+  if (orders[index].status === 'キャンセル') return;
+
+  const currentIndex = statusFlow.indexOf(orders[index].status);
+
+  const nextIndex =
+    currentIndex < 0
+      ? 0
+      : Math.min(currentIndex + 1, statusFlow.length - 1);
+
+  orders[index].status = statusFlow[nextIndex];
+
+  saveOrders(orders);
+  renderOrders();
+}
 function cancelOrder(id) {
-  if (!window.confirm(
+  const confirmed = window.confirm(
     'この予約をキャンセル扱いにしますか？\n予約データは削除されません。'
-  )) return;
+  );
 
-  const orders = loadOrders().filter(order => order.status !== 'キャンセル');
+  if (!confirmed) return;
 
-  const order = orders.find(o => o.id === id);
-  if (!order) return;
+  const orders = loadOrders();
+  const order = orders.find(row => row.id === id);
+
+  if (!order) {
+    window.alert('対象の予約が見つかりません。');
+    return;
+  }
 
   order.status = 'キャンセル';
   order.cancelledAt = new Date().toISOString();
@@ -2823,8 +2942,34 @@ function cancelOrder(id) {
   saveOrders(orders);
 
   els.orderDetailPanel.classList.add('hidden');
-
   renderOrders();
+
+  window.alert('キャンセルに変更しました。');
+}
+function restoreOrder(id) {
+  const confirmed = window.confirm(
+    'この予約を「未確認」に戻しますか？'
+  );
+
+  if (!confirmed) return;
+
+  const orders = loadOrders();
+  const order = orders.find(row => row.id === id);
+
+  if (!order) {
+    window.alert('対象の予約が見つかりません。');
+    return;
+  }
+
+  order.status = '未確認';
+  delete order.cancelledAt;
+
+  saveOrders(orders);
+
+  els.orderDetailPanel.classList.add('hidden');
+  renderOrders();
+
+  window.alert('予約を進行中に戻しました。');
 }
     function editOrder(id) {
       const order = loadOrders().find(row => row.id === id); if (!order) return;
