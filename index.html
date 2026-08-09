@@ -2552,7 +2552,7 @@ detailBtn.addEventListener('click',()=>{
       const data = getOrderData();
       const error = validateOrder(data);
       if (error) return window.alert(error);
-      const orders = loadOrders();
+      const orders = loadOrders().filter(order => order.status !== 'キャンセル');
       if (editingId) {
         const index = orders.findIndex(order => order.id === editingId);
         if (index !== -1) orders[index] = { ...orders[index], ...data };
@@ -2632,7 +2632,7 @@ const matchListMode =
       return orders;
     }
   function renderStats() {
-  const orders = loadOrders();
+  const orders = loadOrders().filter(order => order.status !== 'キャンセル');
   const today = orders.filter(o => o.date === todayStr(0));
   const unfinished = today.filter(o => o.status !== '納品済み');
 
@@ -2671,6 +2671,11 @@ function showOrderDetail(order) {
       <button class="btn-dark" id="detailEditBtn">
         編集
       </button>
+        <button class="btn-secondary" id="detailCancelBtn">
+
+    キャンセル
+
+  </button>
 
       <button class="btn-danger" id="detailDeleteBtn">
         削除
@@ -2683,7 +2688,15 @@ function showOrderDetail(order) {
     .addEventListener('click', () => {
       editOrder(order.id);
     });
+document
 
+  .getElementById('detailCancelBtn')
+
+  .addEventListener('click', () => {
+
+    cancelOrder(order.id);
+
+  })
   document
     .getElementById('detailDeleteBtn')
     .addEventListener('click', () => {
@@ -2791,10 +2804,28 @@ function renderOrders() {
     }
 
     function advanceStatus(id) {
-      const orders = loadOrders(); const index = orders.findIndex(order => order.id === id); if (index === -1) return;
+       const orders = loadOrders().filter(order => order.status !== 'キャンセル');const index = orders.findIndex(order => order.id === id); if (index === -1) return;
       const now = statusFlow.indexOf(orders[index].status); orders[index].status = statusFlow[Math.min(now + 1, statusFlow.length - 1)] || '未確認'; saveOrders(orders); renderOrders();
     }
+function cancelOrder(id) {
+  if (!window.confirm(
+    'この予約をキャンセル扱いにしますか？\n予約データは削除されません。'
+  )) return;
 
+  const orders = loadOrders().filter(order => order.status !== 'キャンセル');
+
+  const order = orders.find(o => o.id === id);
+  if (!order) return;
+
+  order.status = 'キャンセル';
+  order.cancelledAt = new Date().toISOString();
+
+  saveOrders(orders);
+
+  els.orderDetailPanel.classList.add('hidden');
+
+  renderOrders();
+}
     function editOrder(id) {
       const order = loadOrders().find(row => row.id === id); if (!order) return;
       editingId = id; selectedCategory = order.category; renderCategories(); applyCategoryUI(); syncCategoryButtons();
