@@ -1053,7 +1053,6 @@
     font-size: 12px;
   }
 
- @media (max-width: 600px) {
   .allergy-person-card .field .check-grid {
     display: flex;
     overflow-x: auto;
@@ -1085,8 +1084,7 @@
   .remove-allergy-person-btn {
     flex: 0 0 auto;
   }
-}
-@media (max-width: 600px) {
+
   .allergy-wrapper > .allergy-person-head {
     display: flex;
     justify-content: space-between;
@@ -1098,7 +1096,6 @@
     flex: 0 0 auto;
     white-space: nowrap;
   }
-}
   .allergy-person-card .check-pill {
     flex: 0 0 auto;
     padding: 8px 10px;
@@ -1813,6 +1810,7 @@
           <option value="内容確認">内容確認</option>
           <option value="仕込み">仕込み</option>
           <option value="同科確認">同科確認</option>
+          <option value="婚礼書類">婚礼書類</option>
         </select>
       </div>
       <div class="task-list" id="taskListArea"></div>
@@ -2086,6 +2084,12 @@
       'フルーツ盛り': ['りんご', 'いちご', 'キウイ'],
       '桃のヴェリーヌ': ['乳', 'ゼラチン', '桃']
     };
+    const WEDDING_DOCUMENT_MASTER = [
+      { field: 'constructionChecked', label: '施工日資料' },
+      { field: 'tenDaysChecked', label: '10日前資料' },
+      { field: 'menuChecked', label: 'メニュー表' },
+      { field: 'cakeSlipChecked', label: 'ケーキ食伝' }
+    ];
 
     let selectedCategory = '宴会';
     let activeFilter = '全件';
@@ -2822,8 +2826,11 @@ updateWeddingTenDaysDate();
       const sort = els.sortSelect.value;
 
       let orders = loadOrders().filter(order => {
+        const hasMissingWeddingDocument = order.category === '婚礼' &&
+          WEDDING_DOCUMENT_MASTER.some(doc => !order.weddingDocuments?.[doc.field]);
         const hasTask =
           ['未確認', '製造待ち'].includes(order.status) ||
+          hasMissingWeddingDocument ||
           (order.allergyMaster?.people || []).some(p => {
             const foods = getRelevantFamilyFoods(p.primary || []);
             return foods.some(f => (p.familyChecks?.[f] || '未確認') === '未確認');
@@ -2989,6 +2996,9 @@ function renderOrders() {
       ${orders.map(order => {
         const people = order.allergyMaster?.people || [];
         const hasAllergy = people.length > 0;
+        const missingWeddingDocuments = order.category === '婚礼'
+          ? WEDDING_DOCUMENT_MASTER.filter(doc => !order.weddingDocuments?.[doc.field])
+          : [];
         const itemText = (order.items || [])
           .map(i => i.name || i.type)
           .filter(Boolean)
@@ -3034,6 +3044,7 @@ function renderOrders() {
                 ${escapeHtml(order.status || '')}
               </span>
               ${hasAllergy ? `<span class="mini-badge danger">アレ ${people.length}</span>` : ''}
+              ${missingWeddingDocuments.length ? `<span class="mini-badge wait">書類未確認 ${missingWeddingDocuments.length}</span>` : ''}
             </div>
 
             ${itemText ? `
@@ -3178,28 +3189,14 @@ function restoreOrder(id) {
         card.querySelector('.option-free').value = freeOptions.join(' / ');
         card.querySelector('.item-type').dispatchEvent(new Event('change'));
         card.querySelector('.cake-size').dispatchEvent(new Event('change'));
-      const weddingDocuments =
-  order.weddingDocuments || {};
-
-weddingEls.tenDaysDate.value =
-  weddingDocuments.tenDaysDate ||
-  dateOffsetStr(order.date, -10);
-
-weddingEls.constructionChecked.checked =
-  Boolean(weddingDocuments.constructionChecked);
-
-weddingEls.tenDaysChecked.checked =
-  Boolean(weddingDocuments.tenDaysChecked);
-
-weddingEls.menuChecked.checked =
-  Boolean(weddingDocuments.menuChecked);
-
-weddingEls.cakeSlipChecked.checked =
-  Boolean(weddingDocuments.cakeSlipChecked);
-
-weddingEls.notes.value =
-  weddingDocuments.notes || '';
       });
+      const weddingDocuments = order.weddingDocuments || {};
+      weddingEls.tenDaysDate.value = weddingDocuments.tenDaysDate || dateOffsetStr(order.date, -10);
+      weddingEls.constructionChecked.checked = Boolean(weddingDocuments.constructionChecked);
+      weddingEls.tenDaysChecked.checked = Boolean(weddingDocuments.tenDaysChecked);
+      weddingEls.menuChecked.checked = Boolean(weddingDocuments.menuChecked);
+      weddingEls.cakeSlipChecked.checked = Boolean(weddingDocuments.cakeSlipChecked);
+      weddingEls.notes.value = weddingDocuments.notes || '';
       closePrintCards(); closeMonthlyReport(); closeTaskModal(); window.scrollTo({ top: 0, behavior: 'smooth' });
       viewToggle
         .querySelector('[data-view="form"]')
@@ -3313,12 +3310,7 @@ weddingEls.notes.value =
       const categoryFilter = els.taskCategoryFilter.value || 'all';
       const typeFilter = els.taskTypeFilter.value || 'all';
       return loadOrders().filter(order => {
-        const hasUncheckedFamily = (order.allergyMaster?.people || []).some(person => {
-          const relatedFoods = getRelevantFamilyFoods(person.primary || []);
-          return relatedFoods.some(food => (person.familyChecks?.[food] || '未確認') === '未確認');
-        });
-        const hasTaskBase = ['未確認', '製造待ち'].includes(order.status) || hasUncheckedFamily;
-        if (!hasTaskBase) return false;
+        if (['納品済み', 'キャンセル'].includes(order.status)) return false;
         if (categoryFilter !== 'all' && order.category !== categoryFilter) return false;
         if (dateFilter === 'today' && order.date !== todayStr(0)) return false;
         if (dateFilter === 'tomorrow' && order.date !== todayStr(1)) return false;
@@ -3328,12 +3320,12 @@ weddingEls.notes.value =
         const entries = [];
         if (order.status === '未確認') {
           const key = `${order.id}::confirm`;
-          entries.push({ key, label: '内容確認', detail: `${order.category} / ${order.clientName}`, checked: !!checks[key] });
+          entries.push({ key, label: '内容確認', detail: `${order.category} / ${order.clientName}`, checked: !!checks[key], orderId: order.id, documentField: '' });
         }
         if (order.status === '製造待ち') {
           (order.items || []).forEach((item, index) => {
             const key = `${order.id}::prep::${index}`;
-            entries.push({ key, label: '仕込み', detail: `${item.name || item.type} × ${item.quantity || 1}`, checked: !!checks[key] });
+            entries.push({ key, label: '仕込み', detail: `${item.name || item.type} × ${item.quantity || 1}`, checked: !!checks[key], orderId: order.id, documentField: '' });
           });
         }
         (order.allergyMaster?.people || []).forEach((person, personIndex) => {
@@ -3341,28 +3333,66 @@ weddingEls.notes.value =
           const uncheckedFamilies = relatedFoods.filter(food => (person.familyChecks?.[food] || '未確認') === '未確認');
           if (!uncheckedFamilies.length) return;
           const key = `${order.id}::family::${personIndex}`;
-          entries.push({ key, label: '同科確認', detail: `${person.personName || `${personIndex + 1}人目`} / ${uncheckedFamilies.join('・')}`, checked: !!checks[key] });
+          entries.push({ key, label: '同科確認', detail: `${person.personName || `${personIndex + 1}人目`} / ${uncheckedFamilies.join('・')}`, checked: !!checks[key], orderId: order.id, documentField: '' });
         });
+        if (order.category === '婚礼') {
+          const documents = order.weddingDocuments || {};
+          const deadline = documents.tenDaysDate || dateOffsetStr(order.date, -10);
+          WEDDING_DOCUMENT_MASTER.forEach(doc => {
+            if (documents[doc.field]) return;
+            entries.push({
+              key: `${order.id}::wedding-document::${doc.field}`,
+              label: '婚礼書類',
+              detail: `${doc.label} 未確認${deadline ? ` / 目安 ${formatShortDate(deadline)}` : ''}`,
+              checked: false,
+              orderId: order.id,
+              documentField: doc.field
+            });
+          });
+        }
         const filteredEntries = typeFilter === 'all' ? entries : entries.filter(entry => entry.label === typeFilter);
-        return { title: order.clientName, meta: `${order.category} / ${order.date || ''}${order.time ? ` ${order.time}` : ''} / ${order.venue || '場所未入力'}`, status: order.status, entries: filteredEntries };
+        return { id: order.id, title: order.clientName, meta: `${order.category} / ${order.date || ''}${order.time ? ` ${order.time}` : ''} / ${order.venue || '場所未入力'}`, status: order.status, entries: filteredEntries };
       }).filter(group => group.entries.length);
+    }
+
+    function completeWeddingDocument(orderId, documentField, checked) {
+      const orders = loadOrders();
+      const order = orders.find(row => row.id === orderId);
+      if (!order) return false;
+      order.weddingDocuments = order.weddingDocuments || {
+        tenDaysDate: dateOffsetStr(order.date, -10),
+        constructionChecked: false,
+        tenDaysChecked: false,
+        menuChecked: false,
+        cakeSlipChecked: false,
+        notes: ''
+      };
+      order.weddingDocuments[documentField] = checked;
+      saveOrders(orders);
+      return true;
     }
 
     function renderTaskModal() {
       const tasks = buildTaskData();
-      if (!tasks.length) { els.taskListArea.innerHTML = '<div class="empty">未確認・製造待ち・同科未確認のタスクはありません。</div>'; return; }
+      if (!tasks.length) { els.taskListArea.innerHTML = '<div class="empty">未確認・製造待ち・同科未確認・婚礼書類のタスクはありません。</div>'; return; }
       els.taskListArea.innerHTML = tasks.map(group => `
         <article class="task-card">
           <div class="task-head"><div><div class="task-title">${escapeHtml(group.title || '名称未入力')}</div><div class="meta">${escapeHtml(group.meta)}</div></div><div class="badge">${escapeHtml(group.status)}</div></div>
           ${group.entries.map(entry => `
             <label class="task-check ${entry.checked ? 'done' : ''}" data-task-wrap="${escapeHtml(entry.key)}">
-              <input type="checkbox" data-task-key="${escapeHtml(entry.key)}" ${entry.checked ? 'checked' : ''} />
+              <input type="checkbox" data-task-key="${escapeHtml(entry.key)}" data-order-id="${escapeHtml(entry.orderId)}" data-document-field="${escapeHtml(entry.documentField)}" ${entry.checked ? 'checked' : ''} />
               <div><strong>${escapeHtml(entry.label)}</strong><br><span class="meta">${escapeHtml(entry.detail)}</span></div>
             </label>
           `).join('')}
         </article>
       `).join('');
       [...els.taskListArea.querySelectorAll('[data-task-key]')].forEach(input => input.addEventListener('change', () => {
+        if (input.dataset.documentField) {
+          completeWeddingDocument(input.dataset.orderId, input.dataset.documentField, input.checked);
+          renderTaskModal();
+          renderOrders();
+          return;
+        }
         const checks = loadTaskChecks(); checks[input.dataset.taskKey] = input.checked; saveTaskChecks(checks); input.closest('[data-task-wrap]')?.classList.toggle('done', input.checked);
       }));
     }
