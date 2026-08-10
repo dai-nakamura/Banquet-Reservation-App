@@ -2735,6 +2735,59 @@ function extractFinalChecklistFields(rawText) {
   };
 }
 
+function extractFixedWeddingScheduleFields(rawText) {
+  const text = normalizeOcrText(rawText);
+  const bulkOrders = [];
+  const cleanName = value => String(value || '')
+    .replace(/(?:ご?両家|挙式|披露宴)/g, '')
+    .replace(/[・、,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const toDate = value => {
+    const match = String(value || '').match(/(20\d{2})\s*[/.\-年]\s*(\d{1,2})\s*[/.\-月]\s*(\d{1,2})/);
+    return match ? `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}` : '';
+  };
+  const toTime = value => {
+    const match = String(value || '').match(/([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+    return match ? `${String(match[1]).padStart(2, '0')}:${match[2]}` : '';
+  };
+
+  text.split('\n').forEach(line => {
+    const columns = line.split(/[｜|]/).map(value => value.trim());
+    if (columns.length < 6 || !toDate(columns[0])) return;
+    bulkOrders.push({
+      date: toDate(columns[0]), ceremonyTime: toTime(columns[1]), receptionTime: toTime(columns[2]),
+      venue: columns[3] || '', guestCount: Number(columns[4].replace(/\D/g, '') || 0),
+      clientName: cleanName(columns[5]), notes: columns.slice(6).filter(Boolean).join(' / ')
+    });
+  });
+
+  if (!bulkOrders.length) {
+    const nameLabel = '(?:宴席名|両家名|新郎新婦名|婚礼名)';
+    const starts = [...text.matchAll(new RegExp(`(?:^|\\n)\\s*${nameLabel}\\s*:`, 'g'))]
+      .map(match => match.index + (match[0].startsWith('\n') ? 1 : 0));
+    starts.forEach((start, index) => {
+      const block = text.slice(start, starts[index + 1] ?? text.length);
+      const field = labels => {
+        const pattern = new RegExp(`(?:^|\\n)\\s*(?:${labels.join('|')})\\s*:\\s*([^\\n]*)`, 'i');
+        return block.match(pattern)?.[1]?.trim() || '';
+      };
+      bulkOrders.push({
+        date: toDate(field(['婚礼日', '日付', '挙式日'])),
+        ceremonyTime: toTime(field(['挙式時間', '挙式'])),
+        receptionTime: toTime(field(['披露宴時間', '披露宴', '宴席時間'])),
+        venue: field(['会場', '宴席会場']),
+        guestCount: Number(field(['人数', '婚礼人数']).replace(/\D/g, '') || 0),
+        clientName: cleanName(field(['宴席名', '両家名', '新郎新婦名', '婚礼名'])),
+        notes: field(['備考', '特記'])
+      });
+    });
+  }
+
+  if (!bulkOrders.length) return null;
+  return { documentType: '婚礼一覧表', targetCategory: '婚礼', bulkOrders, corrections: [], text };
+}
+
 function extractWeddingScheduleFields(rawText) {
   const text = normalizeOcrText(rawText);
   const year = Number(text.match(/(20\d{2})\s*年/)?.[1] || new Date().getFullYear());
@@ -2827,6 +2880,8 @@ function extractWeddingScheduleFields(rawText) {
 
 function extractPastedDocument(rawText) {
   const text = normalizeOcrText(rawText);
+  const fixedSchedule = extractFixedWeddingScheduleFields(rawText);
+  if (fixedSchedule) return fixedSchedule;
   if (/挙式時間/.test(text) && /挙式名[（(]宴席名[）)]/.test(text) && /成約担当/.test(text)) {
     return extractWeddingScheduleFields(rawText);
   }
