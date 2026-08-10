@@ -2764,7 +2764,13 @@ function extractFixedWeddingScheduleFields(rawText) {
 
   if (!bulkOrders.length) {
     const nameLabel = '(?:宴席名|両家名|新郎新婦名|婚礼名)';
-    const starts = [...text.matchAll(new RegExp(`(?:^|\\n)\\s*${nameLabel}\\s*:`, 'g'))]
+    const dateLabel = '(?:婚礼日|日付|挙式日)';
+    const firstDatePosition = text.search(new RegExp(`(?:^|\\n)\\s*${dateLabel}\\s*:`));
+    const firstNamePosition = text.search(new RegExp(`(?:^|\\n)\\s*${nameLabel}\\s*:`));
+    const blockStartLabel = firstDatePosition >= 0 && (firstNamePosition < 0 || firstDatePosition < firstNamePosition)
+      ? dateLabel
+      : nameLabel;
+    const starts = [...text.matchAll(new RegExp(`(?:^|\\n)\\s*${blockStartLabel}\\s*:`, 'g'))]
       .map(match => match.index + (match[0].startsWith('\n') ? 1 : 0));
     starts.forEach((start, index) => {
       const block = text.slice(start, starts[index + 1] ?? text.length);
