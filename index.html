@@ -2300,7 +2300,8 @@ function setOcrProgress(message, ratio = 0) {
 async function getOcrWorker() {
   if (ocrWorker) return ocrWorker;
   if (!window.Tesseract) throw new Error('OCR本体を読み込めませんでした。');
-  ocrWorker = await Tesseract.createWorker('jpn+eng', 1, {
+  setOcrProgress('日本語OCR辞書を読み込んでいます。4Gでは初回に時間がかかります…', 0.05);
+  ocrWorker = await Tesseract.createWorker('jpn', 1, {
     workerPath: 'ocr/worker.min.js',
     corePath: 'ocr/core',
     langPath: 'ocr/lang',
@@ -2358,7 +2359,7 @@ async function processOcrFiles(files) {
     setOcrProgress(`${files.length}枚の読み取りが完了しました。`, 1);
   } catch (error) {
     console.error(error);
-    setOcrProgress('読み取りに失敗しました。画像形式と通信状態を確認してください。', 0);
+    setOcrProgress(`読み取りに失敗しました：${error?.message || '画像形式と通信状態を確認してください。'}`, 0);
   } finally {
     ocrEls.cameraInput.value = '';
     ocrEls.galleryInput.value = '';
