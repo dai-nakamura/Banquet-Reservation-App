@@ -1517,34 +1517,6 @@
 .today-summary:active {
   transform: scale(0.98);
 }
-.ocr-progress {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px;
-  background: #fafafa;
-  margin-bottom: 12px;
-}
-.ocr-progress-bar {
-  height: 8px;
-  border-radius: 999px;
-  background: #e5e7eb;
-  overflow: hidden;
-  margin-top: 8px;
-}
-.ocr-progress-fill {
-  height: 100%;
-  width: 0;
-  background: var(--dark);
-  transition: width .2s ease;
-}
-.ocr-result-card {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 12px;
-  margin-bottom: 12px;
-  background: #fff;
-}
-.ocr-result-card .textarea { min-height: 120px; }
   </style>
 </head>
 
@@ -1554,8 +1526,6 @@
 <div class="action-row header-actions">
   <button class="btn-light" id="printCardsBtn">カード</button>
   <button class="btn-light" id="taskModalBtn">タスク</button>
-  <button class="btn-dark" id="ocrImportBtn">写真取込</button>
-  <input type="file" id="ocrImageInput" accept="image/*" capture="environment" multiple hidden />
   <button class="btn-light" id="adminToggleBtn">管理</button>
 
   <div class="admin-menu hidden" id="adminMenu">
@@ -1864,23 +1834,6 @@
     </div>
   </div>
 
-  <div class="modal hidden" id="ocrModal">
-    <div class="modal-panel">
-      <div class="modal-toolbar">
-        <div>
-          <div class="section-title" style="margin:0;">写真から予約を読み取る</div>
-          <div class="helper">画像処理はこの端末内だけで行います。結果を確認してからフォームへ反映してください。</div>
-        </div>
-        <button type="button" class="btn-light" id="closeOcrBtn">閉じる</button>
-      </div>
-      <div class="ocr-progress hidden" id="ocrProgress">
-        <div id="ocrProgressText">OCRを準備しています…</div>
-        <div class="ocr-progress-bar"><div class="ocr-progress-fill" id="ocrProgressFill"></div></div>
-      </div>
-      <div id="ocrResults"></div>
-    </div>
-  </div>
-
   <template id="itemTemplate">
     <div class="item-card">
       <div class="item-head">
@@ -2088,7 +2041,6 @@
     </div>
   </template>
 
-  <script src="ocr/tesseract.min.js"></script>
   <script>
     const STORAGE_KEY = 'banquet_reservation_v7';
     const VENUE_MEMORY_KEY = 'banquet_reservation_saved_venues_v1';
@@ -2156,7 +2108,7 @@
     const formSection = document.querySelector('.layout > section:first-child');
     const listSection = document.querySelector('.layout > section:last-child');
     const clearDateFilterBtn = document.getElementById('clearDateFilter');
-const weddingEls = {
+    const weddingEls = {
   wrap: document.getElementById('weddingDocumentsWrap'),
 
   tenDaysDate:
@@ -2177,17 +2129,6 @@ const weddingEls = {
   notes:
     document.getElementById('weddingDocumentNotes')
 };
-const ocrEls = {
-  importBtn: document.getElementById('ocrImportBtn'),
-  input: document.getElementById('ocrImageInput'),
-  modal: document.getElementById('ocrModal'),
-  closeBtn: document.getElementById('closeOcrBtn'),
-  progress: document.getElementById('ocrProgress'),
-  progressText: document.getElementById('ocrProgressText'),
-  progressFill: document.getElementById('ocrProgressFill'),
-  results: document.getElementById('ocrResults')
-};
-let ocrWorker = null;
     function todayStr(offset = 0) {
   const d = new Date();
 
@@ -2222,182 +2163,6 @@ function updateWeddingTenDaysDate() {
     selectedCategory === '婚礼'
       ? dateOffsetStr(els.orderDate.value, -10)
       : '';
-}
-
-function normalizeOcrText(text = '') {
-  return String(text)
-    .replace(/[０-９Ａ-Ｚａ-ｚ]/g, ch =>
-      String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)
-    )
-    .replace(/：/g, ':')
-    .replace(/[／]/g, '/')
-    .replace(/[‐－―ー]/g, '-')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-function classifyWeddingDocument(text) {
-  const rules = [
-    { type: 'ケーキ食伝', words: ['ケーキ食伝', '食伝', 'ウェディングケーキ', 'ウエディングケーキ'] },
-    { type: 'メニュー表', words: ['メニュー表', 'メニュー', '御献立', '献立'] },
-    { type: '10日前資料', words: ['10日前', '十日前', '10 日前'] },
-    { type: '施工日資料', words: ['施工日', '施行日', '婚礼施工', '婚礼施行'] }
-  ];
-  let best = { type: '判別できず', score: 0 };
-  rules.forEach(rule => {
-    const score = rule.words.reduce((sum, word) => sum + (text.includes(word) ? word.length : 0), 0);
-    if (score > best.score) best = { type: rule.type, score };
-  });
-  return best.type;
-}
-
-function firstMatchingLine(text, labels) {
-  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
-  const line = lines.find(value => labels.some(label => value.includes(label)));
-  if (!line) return '';
-  const label = labels.find(value => line.includes(value));
-  return line.slice(line.indexOf(label) + label.length).replace(/^[\s:：・]+/, '').trim();
-}
-
-function extractOcrFields(rawText) {
-  const text = normalizeOcrText(rawText);
-  const fullDate = text.match(/(20\d{2})\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})\s*日?/);
-  const shortDate = !fullDate && text.match(/(?:^|\s)(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
-  let date = '';
-  if (fullDate) {
-    date = `${fullDate[1]}-${String(fullDate[2]).padStart(2, '0')}-${String(fullDate[3]).padStart(2, '0')}`;
-  } else if (shortDate) {
-    const baseYear = Number((els.orderDate.value || todayStr()).slice(0, 4));
-    date = `${baseYear}-${String(shortDate[1]).padStart(2, '0')}-${String(shortDate[2]).padStart(2, '0')}`;
-  }
-  const timeMatch = text.match(/(?:^|\s)([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
-  const guestMatch = text.match(/(?:人数|大人|列席|ゲスト)[^\d]{0,12}(\d{1,4})\s*名?/);
-  const sizeMatches = [...text.matchAll(/(?:9\s*cm|[4-7]\s*号|尺|\d{2,3}\s*(?:cm)?\s*[×xX]\s*\d{2,3}\s*cm)/gi)]
-    .map(match => match[0].replace(/\s+/g, ''));
-  return {
-    documentType: classifyWeddingDocument(text),
-    date,
-    time: timeMatch ? `${String(timeMatch[1]).padStart(2, '0')}:${timeMatch[2]}` : '',
-    clientName: firstMatchingLine(text, ['新郎新婦名', '婚礼名', '両家名', 'お名前', '氏名']),
-    venue: firstMatchingLine(text, ['披露宴会場', '会場', '場所']),
-    guestCount: guestMatch ? Number(guestMatch[1]) : 0,
-    sizes: [...new Set(sizeMatches)],
-    text
-  };
-}
-
-function setOcrProgress(message, ratio = 0) {
-  ocrEls.progress.classList.remove('hidden');
-  ocrEls.progressText.textContent = message;
-  ocrEls.progressFill.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
-}
-
-async function getOcrWorker() {
-  if (ocrWorker) return ocrWorker;
-  if (!window.Tesseract) throw new Error('OCR本体を読み込めませんでした。');
-  ocrWorker = await Tesseract.createWorker('jpn+eng', 1, {
-    workerPath: 'ocr/worker.min.js',
-    corePath: 'ocr/core',
-    langPath: 'ocr/lang',
-    logger: message => {
-      if (typeof message.progress === 'number') {
-        setOcrProgress(message.status || '文字を読み取っています…', message.progress);
-      }
-    }
-  });
-  return ocrWorker;
-}
-
-function renderOcrResult(result, fileName, index) {
-  return `
-    <article class="ocr-result-card" data-ocr-result="${index}">
-      <div class="item-head">
-        <div>
-          <div class="item-title">${escapeHtml(fileName)}</div>
-          <div class="meta">自動判別：${escapeHtml(result.documentType)}</div>
-        </div>
-        <span class="badge">要確認</span>
-      </div>
-      <div class="grid-3">
-        <div class="field"><label class="label">書類種類</label><select class="select ocr-type">
-          ${['施工日資料','10日前資料','メニュー表','ケーキ食伝','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
-        </select></div>
-        <div class="field"><label class="label">婚礼日</label><input class="input ocr-date" type="date" value="${escapeHtml(result.date)}"></div>
-        <div class="field"><label class="label">時間</label><input class="input ocr-time" type="time" value="${escapeHtml(result.time)}"></div>
-      </div>
-      <div class="grid-3">
-        <div class="field"><label class="label">婚礼名・新郎新婦名</label><input class="input ocr-name" value="${escapeHtml(result.clientName)}"></div>
-        <div class="field"><label class="label">会場</label><input class="input ocr-venue" value="${escapeHtml(result.venue)}"></div>
-        <div class="field"><label class="label">人数</label><input class="input ocr-guests" type="number" min="0" value="${result.guestCount || ''}"></div>
-      </div>
-      <div class="field"><label class="label">検出したケーキサイズ</label><input class="input ocr-sizes" value="${escapeHtml(result.sizes.join(' + '))}"></div>
-      <div class="field"><label class="label">OCR全文</label><textarea class="textarea ocr-text">${escapeHtml(result.text)}</textarea></div>
-      <button type="button" class="btn-dark apply-ocr-result">この結果を入力フォームへ反映</button>
-    </article>`;
-}
-
-async function processOcrFiles(files) {
-  if (!files.length) return;
-  ocrEls.modal.classList.remove('hidden');
-  ocrEls.results.innerHTML = '';
-  try {
-    const worker = await getOcrWorker();
-    const results = [];
-    for (let index = 0; index < files.length; index += 1) {
-      setOcrProgress(`${index + 1}/${files.length}枚目を読み取っています…`, 0);
-      const recognized = await worker.recognize(files[index]);
-      const result = extractOcrFields(recognized.data.text || '');
-      results.push(renderOcrResult(result, files[index].name, index));
-      ocrEls.results.innerHTML = results.join('');
-    }
-    setOcrProgress(`${files.length}枚の読み取りが完了しました。`, 1);
-  } catch (error) {
-    console.error(error);
-    setOcrProgress('読み取りに失敗しました。画像形式と通信状態を確認してください。', 0);
-  } finally {
-    ocrEls.input.value = '';
-  }
-}
-
-function applyOcrResult(card) {
-  selectedCategory = '婚礼';
-  renderCategories();
-  applyCategoryUI();
-  syncCategoryButtons();
-  const value = selector => card.querySelector(selector)?.value?.trim() || '';
-  if (value('.ocr-date')) els.orderDate.value = value('.ocr-date');
-  if (value('.ocr-time')) els.orderTime.value = value('.ocr-time');
-  if (value('.ocr-name')) els.clientName.value = value('.ocr-name');
-  if (value('.ocr-venue')) els.venue.value = value('.ocr-venue');
-  if (value('.ocr-guests')) els.guestCount.value = value('.ocr-guests');
-  updateWeddingTenDaysDate();
-  const type = value('.ocr-type');
-  const documentField = {
-    '施工日資料': 'constructionChecked',
-    '10日前資料': 'tenDaysChecked',
-    'メニュー表': 'menuChecked',
-    'ケーキ食伝': 'cakeSlipChecked'
-  }[type];
-  if (documentField && weddingEls[documentField]) {
-    weddingEls[documentField].checked = true;
-  }
-  const sizes = value('.ocr-sizes');
-  if (sizes) {
-    let cakeCard = [...els.itemsArea.querySelectorAll('.item-card')].find(node =>
-      ['ウエディングケーキ', 'ウェディングケーキ'].includes(node.querySelector('.item-type')?.value)
-    );
-    if (!cakeCard) {
-      addItem('ウエディングケーキ');
-      cakeCard = els.itemsArea.firstElementChild;
-    }
-    cakeCard.querySelector('.multi-size').value = sizes;
-  }
-  const rawText = value('.ocr-text');
-  weddingEls.notes.value = [weddingEls.notes.value, `【${type} OCR】\n${rawText}`].filter(Boolean).join('\n\n');
-  ocrEls.modal.classList.add('hidden');
-  viewToggle.querySelector('[data-view="form"]').click();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function updateAllergyCount() {
 
@@ -3938,14 +3703,6 @@ if (!isWeddingOrAnniversaryCake) {
     els.closeReportBtn.addEventListener('click', closeMonthlyReport);
     els.resetFormBtn.addEventListener('click', () => resetForm());
     els.clearAllBtn.addEventListener('click', clearAll);
-    ocrEls.importBtn.addEventListener('click', () => ocrEls.input.click());
-    ocrEls.input.addEventListener('change', event => processOcrFiles([...event.target.files]));
-    ocrEls.closeBtn.addEventListener('click', () => ocrEls.modal.classList.add('hidden'));
-    ocrEls.results.addEventListener('click', event => {
-      const button = event.target.closest('.apply-ocr-result');
-      if (!button) return;
-      applyOcrResult(button.closest('.ocr-result-card'));
-    });
     els.orderDate.addEventListener(
   'change',
   updateWeddingTenDaysDate
