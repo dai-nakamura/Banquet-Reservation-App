@@ -2479,6 +2479,18 @@ function extractMenuPasteFields(rawText) {
   };
 }
 
+const FORM_LABEL_PATTERN = /^(?:配布先|受取者|受付日|担当者|お客様名|予約名|氏名|連絡先|日時|人数|会場|金額|ケーキサイズ|ろうそく|種類|特記|ホールケーキ|メッセージ|ホールケーキメッセージ|アレルギー|支払方法|Room\s*No\.?|部屋番号|備考|納品日|納品場所|連絡事項|品名|カラー|単価|数量|変更TEL|最終)[\s/:：・]*$/i;
+
+function isFormLabel(value = '') {
+  const cleaned = value.replace(/[*＊<>〈〉「」\[\]]/g, '').trim();
+  return !cleaned || FORM_LABEL_PATTERN.test(cleaned) || /特典発注依頼書|ハピネスプラン/.test(cleaned);
+}
+
+function isUsefulValue(value = '') {
+  const cleaned = value.trim();
+  return Boolean(cleaned) && !isFormLabel(cleaned) && /[\p{L}\p{N}一-龠ぁ-んァ-ヶ]/u.test(cleaned);
+}
+
 function valueAfterLabel(lines, labels) {
   const index = lines.findIndex(line => labels.some(label => line.includes(label)));
   if (index < 0) return '';
@@ -2487,8 +2499,9 @@ function valueAfterLabel(lines, labels) {
     .slice(lines[index].indexOf(label) + label.length)
     .replace(/^[\s:：/・]+/, '')
     .trim();
-  if (sameLine && !/^[*＊~～-]+$/.test(sameLine)) return sameLine;
-  return lines[index + 1] || '';
+  if (sameLine && !/^[*＊~～-]+$/.test(sameLine) && !isFormLabel(sameLine)) return sameLine;
+  const nextLine = lines[index + 1] || '';
+  return isUsefulValue(nextLine) ? nextLine : '';
 }
 
 function commonPastedDateTime(text) {
@@ -2507,12 +2520,20 @@ function extractAnniversarySlipFields(rawText) {
   const countMatch = text.match(/(?:人数|合計)[^\n\d]{0,12}(\d{1,3})\s*名/);
   const sizeMatch = text.match(/(?:ケーキサイズ[^\n]*)?(9\s*cm|[3-7]\s*号|尺|四角(?:\s*\d+\s*[×xX]\s*\d+)?)/);
   const allergy = valueAfterLabel(lines, ['アレルギー']);
-  const message = valueAfterLabel(lines, ['ホールケーキメッセージ', 'メッセージ', 'プレート文言']);
-  const cakeType = valueAfterLabel(lines, ['種類', 'ケーキ種類']) || 'アニバーサリーケーキ';
-  const clientName = valueAfterLabel(lines, ['お客様名', '予約名', '氏名']);
-  const venue = valueAfterLabel(lines, ['会場', '受け渡し場所']);
+  const messageCandidate = valueAfterLabel(lines, ['ホールケーキメッセージ', 'メッセージ', 'プレート文言']);
+  const englishMessage = lines.find(line => /Happy\s+(?:Birthday|Wedding|Anniversary)|Anniversary|Congratulations/i.test(line)) || '';
+  const message = isFormLabel(messageCandidate) ? englishMessage : (messageCandidate || englishMessage);
+  const cakeTypeCandidate = valueAfterLabel(lines, ['種類', 'ケーキ種類']);
+  const cakeType = /ショート|チョコ|フルーツ|タルト|モンブラン|チーズ|ケーキ/.test(cakeTypeCandidate)
+    ? cakeTypeCandidate
+    : 'アニバーサリーケーキ';
+  const nameCandidate = valueAfterLabel(lines, ['お客様名', '予約名', '氏名']);
+  const clientName = /連絡先|日時|人数|会場|金額/.test(nameCandidate) ? '' : nameCandidate;
+  const venueCandidate = valueAfterLabel(lines, ['会場', '受け渡し場所']);
+  const venue = /金額|ケーキサイズ|ろうそく|種類/.test(venueCandidate) ? '' : venueCandidate;
   const room = valueAfterLabel(lines, ['Room No.', 'Room No', '部屋番号']);
-  const notes = valueAfterLabel(lines, ['備考', '特記']);
+  const notesCandidate = valueAfterLabel(lines, ['備考', '特記']);
+  const notes = isFormLabel(notesCandidate) || /ホールケーキ|メッセージ|アレルギー/.test(notesCandidate) ? '' : notesCandidate;
   return {
     documentType: 'ケーキ食伝', targetCategory: 'アニバーサリー',
     date: dateTime.date, time: dateTime.time,
@@ -2522,6 +2543,7 @@ function extractAnniversarySlipFields(rawText) {
     allergy, children: [], cakeType, cakeCutting: false, firstBite: false,
     itemType: 'アニバーサリーケーキ', itemName: cakeType,
     itemQuantity: 1, message,
+    items: [{ type: 'アニバーサリーケーキ', name: cakeType, quantity: 1 }],
     extraInfo: [room ? `Room No. ${room}` : '', notes].filter(Boolean).join('\n'),
     corrections: [], text
   };
@@ -2531,6 +2553,9 @@ function extractGiftSlipFields(rawText) {
   const text = normalizeOcrText(rawText);
   const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
   const dateTime = commonPastedDateTime(text);
+  const allDates = [...text.matchAll(/(20\d{2})\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})\s*日?/g)]
+    .map(match => `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`)
+    .sort();
   const ceremonyDateMatch = text.match(/挙式日[\s\S]{0,35}?(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?/);
   if (ceremonyDateMatch) {
     dateTime.date = `${ceremonyDateMatch[1]}-${String(ceremonyDateMatch[2]).padStart(2, '0')}-${String(ceremonyDateMatch[3]).padStart(2, '0')}`;
@@ -2540,7 +2565,12 @@ function extractGiftSlipFields(rawText) {
   const deliveryDate = deliveryDateMatch
     ? `${deliveryDateMatch[1]}-${String(deliveryDateMatch[2]).padStart(2, '0')}-${String(deliveryDateMatch[3]).padStart(2, '0')}`
     : '';
-  const deliveryVenue = valueAfterLabel(lines, ['納品場所']);
+  if (!ceremonyDateMatch && allDates.length) {
+    const ceremonyCandidates = allDates.filter(date => date !== deliveryDate);
+    dateTime.date = ceremonyCandidates.at(-1) || allDates.at(-1);
+  }
+  const deliveryVenueCandidate = valueAfterLabel(lines, ['納品場所']);
+  const deliveryVenue = isUsefulValue(deliveryVenueCandidate) ? deliveryVenueCandidate : '';
   const productLines = lines.filter(line =>
     /ジャム|アローム|引き菓子|ギフト|クッキー|フィナンシェ|マドレーヌ/.test(line) &&
     !/^(?:連絡事項|備考|納品)/.test(line)
@@ -2548,6 +2578,15 @@ function extractGiftSlipFields(rawText) {
   const firstProductNumbers = productLines.length
     ? [...productLines[0].matchAll(/\d{1,3}(?:,\d{3})*/g)].map(match => Number(match[0].replace(/,/g, '')))
     : [];
+  const parsedItems = productLines.map(line => {
+    const numbers = [...line.matchAll(/\d{1,3}(?:,\d{3})*/g)].map(match => Number(match[0].replace(/,/g, '')));
+    const hasPriceAndQuantity = numbers.length >= 2;
+    return {
+      type: 'ギフト',
+      name: line.replace(/\s+\d[\d,]*\s+\d+\s*$/, '').trim(),
+      quantity: hasPriceAndQuantity ? numbers.at(-1) : 0
+    };
+  });
   const contactNotes = valueAfterLabel(lines, ['連絡事項', '備考']);
   return {
     documentType: '引き菓子食伝', targetCategory: '婚礼',
@@ -2556,15 +2595,94 @@ function extractGiftSlipFields(rawText) {
     guestCount: 0, sizes: [], allergy: '', children: [],
     cakeType: '', cakeCutting: false, firstBite: false,
     itemType: 'ギフト', itemName: productLines[0]?.replace(/\s+\d[\d,]*\s+\d+\s*$/, '') || '引き菓子',
-    itemQuantity: firstProductNumbers.at(-1) || 1,
+    itemQuantity: firstProductNumbers.at(-1) || 0,
+    items: parsedItems.length ? parsedItems : [{ type: 'ギフト', name: '引き菓子', quantity: 0 }],
     deliveryDate, deliveryVenue,
     extraInfo: [productLines.length ? `商品候補\n${productLines.join('\n')}` : '', contactNotes].filter(Boolean).join('\n\n'),
     corrections: [], text
   };
 }
 
+function uniqueRelevantLines(lines, pattern) {
+  return [...new Set(lines.filter(line => pattern.test(line)).map(line => line.replace(/^[・*＊\s]+/, '').trim()))];
+}
+
+function extractFinalChecklistFields(rawText) {
+  const text = normalizeOcrText(rawText);
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  const stopIndex = lines.findIndex(line => /当日|進行|宿泊|衣装|美容/.test(line));
+  const topLines = lines.slice(0, stopIndex > 8 ? stopIndex : Math.min(lines.length, 45));
+  const topText = topLines.join('\n');
+  const dates = [...topText.matchAll(/(20\d{2}|R\s*\d+)\s*[年/.-]\s*(\d{1,2})\s*[月/.-]\s*(\d{1,2})\s*日?/gi)].map(match => {
+    const year = /^R/i.test(match[1]) ? 2018 + Number(match[1].replace(/\D/g, '')) : Number(match[1]);
+    return `${year}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
+  }).sort();
+  const times = [...topText.matchAll(/(?:^|\D)([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/g)]
+    .map(match => `${String(match[1]).padStart(2, '0')}:${match[2]}`);
+  const guestMatch = topText.match(/(?:プラン|人数|列席)[\s\S]{0,60}?(\d{1,3})\s*名/);
+  const venueMatch = topText.match(/会場[\s:：/]*([^\n]{1,20})/);
+  const nameLines = uniqueRelevantLines(topLines, /新郎|新婦|お名前/)
+    .filter(line => !/新郎下|新婦下|新郎父|新婦父|住所|TEL|電話/.test(line));
+  const clientName = nameLines.length
+    ? nameLines.join(' / ').replace(/新郎新婦|お名前|新郎|新婦|[:：]/g, '').trim()
+    : '';
+
+  const foodLines = uniqueRelevantLines(lines, /コース\s*\d|デザート|ビュッフェ|お子|料理/)
+    .filter(line => !/料理長|料理教室/.test(line));
+  const allergyLines = uniqueRelevantLines(lines, /アレルギ|苦手|除去|妊婦|NG|メニュー依頼|山芋|生もの/);
+  const cakeLines = uniqueRelevantLines(lines, /ケーキ|入刀|ファーストバイト|サーブ|生\s*[\d,]+|名様分/);
+
+  const giftStart = lines.findIndex(line => /引出物|引き出物|引き菓子/.test(line));
+  const giftEndRelative = giftStart >= 0
+    ? lines.slice(giftStart + 1).findIndex(line => /写真|スナップ|記念品|備考/.test(line))
+    : -1;
+  const giftBlock = giftStart >= 0
+    ? lines.slice(giftStart, giftEndRelative >= 0 ? giftStart + 1 + giftEndRelative : giftStart + 18)
+    : [];
+  const giftLines = uniqueRelevantLines(giftBlock, /パウンド|引き菓子|ギフト|ジャム|アローム|クッキー|フィナンシェ|マドレーヌ/);
+  const giftItems = giftLines
+    .filter(line => !/引出物|引き出物/.test(line) || /パウンド|ジャム|アローム|クッキー|フィナンシェ|マドレーヌ/.test(line))
+    .map(line => {
+      const numbers = [...line.matchAll(/\d{1,3}(?:,\d{3})*/g)].map(match => Number(match[0].replace(/,/g, '')));
+      const quantity = numbers.length ? numbers.at(-1) : 0;
+      return {
+        type: 'ギフト',
+        name: line.replace(/(?:@|＠)?\s*[\d,]+(?:円)?\s*[×xX✕]\s*\d+.*$/, '').replace(/\s+\d+\s*$/, '').trim(),
+        quantity
+      };
+    });
+  const hasCake = cakeLines.some(line => /ケーキ|入刀|ファーストバイト|生\s*[\d,]+/.test(line));
+  const items = [
+    ...(hasCake ? [{ type: 'ウエディングケーキ', name: 'ウエディングケーキ', quantity: 1 }] : []),
+    ...giftItems
+  ];
+  const cakeCutting = cakeLines.some(line => /入刀[\s/:：]*(?:有|あり)/.test(line));
+  const firstBite = cakeLines.some(line => /ファーストバイト[\s/:：]*(?:有|あり)/.test(line));
+  const extraInfo = [
+    foodLines.length ? `【料理・デザート】\n${foodLines.join('\n')}` : '',
+    allergyLines.length ? `【アレルギー・個別対応】\n${allergyLines.join('\n')}` : '',
+    cakeLines.length ? `【ケーキ】\n${cakeLines.join('\n')}` : '',
+    giftLines.length ? `【引き菓子】\n${giftLines.join('\n')}` : ''
+  ].filter(Boolean).join('\n\n');
+  return {
+    documentType: '10日前資料', targetCategory: '婚礼',
+    date: dates.at(-1) || '', time: times[1] || times[0] || '',
+    ceremonyTime: times[0] || '', receptionTime: times[1] || '',
+    clientName: isUsefulValue(clientName) ? clientName : '',
+    venue: venueMatch && isUsefulValue(venueMatch[1]) ? venueMatch[1].trim() : '',
+    guestCount: guestMatch ? Number(guestMatch[1]) : 0,
+    sizes: [], allergy: allergyLines.join(' / '), children: foodLines.filter(line => /お子/.test(line)),
+    cakeType: hasCake ? 'ウエディングケーキ' : '', cakeCutting, firstBite,
+    items: items.length ? items : [{ type: 'その他', name: '', quantity: 1 }],
+    extraInfo, corrections: [], text
+  };
+}
+
 function extractPastedDocument(rawText) {
   const text = normalizeOcrText(rawText);
+  if (/ブライダルチェックリスト|10\s*日前最終|10\s*日前資料/.test(text)) {
+    return extractFinalChecklistFields(rawText);
+  }
   if (/ハピネスプラン|特典発注依頼書|ケーキサイズ|ろうそく|ホールケーキメッセージ/.test(text)) {
     return extractAnniversarySlipFields(rawText);
   }
@@ -2597,6 +2715,35 @@ async function getOcrWorker() {
   return ocrWorker;
 }
 
+function renderOcrProductRows(result) {
+  const fallbackType = result.itemType || (result.cakeType ? 'ウエディングケーキ' : 'その他');
+  const products = result.items?.length
+    ? result.items
+    : [{ type: fallbackType, name: result.itemName || result.cakeType || '', quantity: result.itemQuantity || 1 }];
+  return products.map((product, index) => `
+    <div class="ocr-product-row item-card" data-product-index="${index}">
+      <div class="item-head">
+        <div class="item-title">商品 ${index + 1}</div>
+        <button type="button" class="btn-danger remove-ocr-product">削除</button>
+      </div>
+      <div class="grid-3">
+        <div class="field"><label class="label">商品区分</label><select class="select ocr-item-type">
+          ${['アニバーサリーケーキ','ホールケーキ','ウエディングケーキ','ギフト','その他'].map(type => `<option ${type === product.type ? 'selected' : ''}>${type}</option>`).join('')}
+        </select></div>
+        <div class="field"><label class="label">商品名</label><input class="input ocr-item-name" value="${escapeHtml(product.name || '')}"></div>
+        <div class="field"><label class="label">数量</label><input class="input ocr-item-quantity" type="number" min="1" placeholder="要確認" value="${product.quantity ? Number(product.quantity) : ''}"></div>
+      </div>
+    </div>`).join('');
+}
+
+function renumberOcrProductRows(card) {
+  card.querySelectorAll('.ocr-product-row').forEach((row, index) => {
+    row.dataset.productIndex = index;
+    const title = row.querySelector('.item-title');
+    if (title) title.textContent = `商品 ${index + 1}`;
+  });
+}
+
 function renderOcrResult(result, fileName, index) {
   return `
     <article class="ocr-result-card" data-ocr-result="${index}">
@@ -2614,7 +2761,7 @@ function renderOcrResult(result, fileName, index) {
         <div class="field"><label class="label">書類種類</label><select class="select ocr-type">
           ${['施工日資料','10日前資料','メニュー表','ケーキ食伝','引き菓子食伝','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
         </select></div>
-        <div class="field"><label class="label">婚礼日</label><input class="input ocr-date" type="date" value="${escapeHtml(result.date)}"></div>
+        <div class="field"><label class="label">日付</label><input class="input ocr-date" type="date" value="${escapeHtml(result.date)}"></div>
         <div class="field"><label class="label">時間</label><input class="input ocr-time" type="time" value="${escapeHtml(result.time)}"></div>
       </div>
       <div class="grid-3">
@@ -2631,12 +2778,10 @@ function renderOcrResult(result, fileName, index) {
         <div class="field"><label class="label">お子様メニュー</label><input class="input ocr-children" value="${escapeHtml((result.children || []).join(' / '))}"></div>
         <div class="field"><label class="label">ケーキ</label><input class="input ocr-cake-type" value="${escapeHtml(result.cakeType || result.sizes.join(' + '))}"></div>
       </div>
-      <div class="grid-3">
-        <div class="field"><label class="label">商品区分</label><select class="select ocr-item-type">
-          ${['アニバーサリーケーキ','ホールケーキ','ウエディングケーキ','ギフト','その他'].map(type => `<option ${type === (result.itemType || (result.cakeType ? 'ウエディングケーキ' : 'その他')) ? 'selected' : ''}>${type}</option>`).join('')}
-        </select></div>
-        <div class="field"><label class="label">商品名</label><input class="input ocr-item-name" value="${escapeHtml(result.itemName || result.cakeType || '')}"></div>
-        <div class="field"><label class="label">数量</label><input class="input ocr-item-quantity" type="number" min="1" value="${Number(result.itemQuantity || 1)}"></div>
+      <div class="field">
+        <div class="label">商品一覧</div>
+        <div class="ocr-products-area">${renderOcrProductRows(result)}</div>
+        <button type="button" class="btn-light add-ocr-product" style="width:100%;margin-top:8px;">＋ 商品を追加</button>
       </div>
       <div class="grid-2">
         <div class="field"><label class="label">納品日</label><input class="input ocr-delivery-date" type="date" value="${escapeHtml(result.deliveryDate || '')}"></div>
@@ -2831,6 +2976,16 @@ function analyzePastedText() {
 
 function applyOcrResult(card) {
   const value = selector => card.querySelector(selector)?.value?.trim() || '';
+  const productRows = [...card.querySelectorAll('.ocr-product-row')];
+  const incompleteGift = productRows.find(row =>
+    row.querySelector('.ocr-item-type')?.value === 'ギフト' &&
+    !row.querySelector('.ocr-item-quantity')?.value
+  );
+  if (incompleteGift) {
+    window.alert('引き菓子の数量が読み取れていません。原本を確認して数量を入力してください。');
+    incompleteGift.querySelector('.ocr-item-quantity')?.focus();
+    return;
+  }
   selectedCategory = categories.includes(value('.ocr-category')) ? value('.ocr-category') : '婚礼';
   renderCategories();
   applyCategoryUI();
@@ -2852,21 +3007,21 @@ function applyOcrResult(card) {
     weddingEls[documentField].checked = true;
   }
   const sizes = value('.ocr-sizes');
-  const itemType = value('.ocr-item-type');
-  const itemName = value('.ocr-item-name') || value('.ocr-cake-type');
-  if (itemName || sizes || itemType === 'ギフト') {
-    addItem(itemType || 'その他');
+  productRows.forEach((row, index) => {
+    const itemType = row.querySelector('.ocr-item-type')?.value || 'その他';
+    const itemName = row.querySelector('.ocr-item-name')?.value.trim() || (index === 0 ? value('.ocr-cake-type') : '') || itemType;
+    addItem(itemType);
     const itemCard = els.itemsArea.firstElementChild;
-    itemCard.querySelector('.item-type').value = itemType || 'その他';
+    itemCard.querySelector('.item-type').value = itemType;
     itemCard.querySelector('.item-type').dispatchEvent(new Event('change'));
-    itemCard.querySelector('.item-name').value = itemName || itemType;
-    itemCard.querySelector('.item-quantity').value = value('.ocr-item-quantity') || 1;
-    if (sizes) itemCard.querySelector('.multi-size').value = sizes;
-    if (value('.ocr-message')) itemCard.querySelector('.plate-message').value = value('.ocr-message');
+    itemCard.querySelector('.item-name').value = itemName;
+    itemCard.querySelector('.item-quantity').value = row.querySelector('.ocr-item-quantity')?.value || 1;
+    if (index === 0 && sizes) itemCard.querySelector('.multi-size').value = sizes;
+    if (index === 0 && value('.ocr-message')) itemCard.querySelector('.plate-message').value = value('.ocr-message');
     const extraInfo = value('.ocr-extra-info');
     if (extraInfo) itemCard.querySelector('.item-notes').value = extraInfo;
-    renumberItems();
-  }
+  });
+  renumberItems();
   const rawText = value('.ocr-text');
   const structuredNotes = [
     value('.ocr-ceremony-time') ? `挙式 ${value('.ocr-ceremony-time')}` : '',
@@ -4441,6 +4596,23 @@ if (!isWeddingOrAnniversaryCake) {
       updateTemplatePreview(event.target.closest('.ocr-preparation-card'));
     });
     ocrEls.results.addEventListener('click', event => {
+      const resultCard = event.target.closest('.ocr-result-card');
+      const addProductButton = event.target.closest('.add-ocr-product');
+      if (addProductButton && resultCard) {
+        resultCard.querySelector('.ocr-products-area').insertAdjacentHTML('beforeend', renderOcrProductRows({
+          items: [{ type: resultCard.querySelector('.ocr-category')?.value === 'アニバーサリー' ? 'アニバーサリーケーキ' : 'ギフト', name: '', quantity: 0 }]
+        }));
+        renumberOcrProductRows(resultCard);
+        return;
+      }
+      const removeProductButton = event.target.closest('.remove-ocr-product');
+      if (removeProductButton && resultCard) {
+        const rows = resultCard.querySelectorAll('.ocr-product-row');
+        if (rows.length <= 1) return window.alert('商品は1件以上必要です。');
+        removeProductButton.closest('.ocr-product-row').remove();
+        renumberOcrProductRows(resultCard);
+        return;
+      }
       const runButton = event.target.closest('.run-template-ocr');
       if (runButton) {
         runTemplateOcr(runButton.closest('.ocr-preparation-card'));
