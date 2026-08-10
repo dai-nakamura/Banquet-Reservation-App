@@ -2791,7 +2791,49 @@ function renumberOcrProductRows(card) {
   });
 }
 
+function getOcrResultLayout(result) {
+  const type = result.documentType || '判別できず';
+  const layouts = {
+    'メニュー表': {
+      dateLabel: '婚礼日', timeLabel: '時間', nameLabel: '両家名', showTime: false,
+      showVenue: false, showGuests: false, showCeremony: true, showReception: true,
+      showAllergy: true, showChildren: true, showCake: true, showProducts: true,
+      showDelivery: false, showMessage: false, showCakeChecks: true, showSizes: true,
+      extraLabel: 'メニュー・追加情報'
+    },
+    'ケーキ食伝': {
+      dateLabel: '日付', timeLabel: '時間', nameLabel: 'お客様名', showTime: true,
+      showVenue: true, showGuests: true, showCeremony: false, showReception: false,
+      showAllergy: true, showChildren: false, showCake: true, showProducts: true,
+      showDelivery: false, showMessage: true, showCakeChecks: false, showSizes: true,
+      extraLabel: '特記・備考'
+    },
+    '引き菓子食伝': {
+      dateLabel: '挙式日', timeLabel: '挙式時間', nameLabel: '新郎新婦名', showTime: true,
+      showVenue: false, showGuests: false, showCeremony: false, showReception: false,
+      showAllergy: false, showChildren: false, showCake: false, showProducts: true,
+      showDelivery: true, showMessage: false, showCakeChecks: false, showSizes: false,
+      extraLabel: '連絡事項'
+    },
+    '10日前資料': {
+      dateLabel: '婚礼日', timeLabel: '基準時間', nameLabel: '新郎新婦名', showTime: false,
+      showVenue: true, showGuests: true, showCeremony: true, showReception: true,
+      showAllergy: true, showChildren: true, showCake: true, showProducts: true,
+      showDelivery: false, showMessage: false, showCakeChecks: true, showSizes: true,
+      extraLabel: '料理・ケーキ・引き菓子情報'
+    }
+  };
+  return layouts[type] || {
+    dateLabel: '日付', timeLabel: '時間', nameLabel: '予約名・お客様名', showTime: true,
+    showVenue: true, showGuests: true, showCeremony: false, showReception: false,
+    showAllergy: true, showChildren: true, showCake: true, showProducts: true,
+    showDelivery: true, showMessage: true, showCakeChecks: true, showSizes: true,
+    extraLabel: '追加情報'
+  };
+}
+
 function renderOcrResult(result, fileName, index) {
+  const layout = getOcrResultLayout(result);
   return `
     <article class="ocr-result-card" data-ocr-result="${index}">
       <div class="item-head">
@@ -2808,44 +2850,44 @@ function renderOcrResult(result, fileName, index) {
         <div class="field"><label class="label">書類種類</label><select class="select ocr-type">
           ${['施工日資料','10日前資料','メニュー表','ケーキ食伝','引き菓子食伝','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
         </select></div>
-        <div class="field"><label class="label">日付</label><input class="input ocr-date" type="date" value="${escapeHtml(result.date)}"></div>
-        <div class="field"><label class="label">時間</label><input class="input ocr-time" type="time" value="${escapeHtml(result.time)}"></div>
+        <div class="field"><label class="label">${layout.dateLabel}</label><input class="input ocr-date" type="date" value="${escapeHtml(result.date)}"></div>
+        <div class="field ${layout.showTime ? '' : 'hidden'}"><label class="label">${layout.timeLabel}</label><input class="input ocr-time" type="time" value="${escapeHtml(result.time)}"></div>
       </div>
       <div class="grid-3">
-        <div class="field"><label class="label">婚礼名・新郎新婦名</label><input class="input ocr-name" value="${escapeHtml(result.clientName)}"></div>
-        <div class="field"><label class="label">会場</label><input class="input ocr-venue" value="${escapeHtml(result.venue)}"></div>
-        <div class="field"><label class="label">人数</label><input class="input ocr-guests" type="number" min="0" value="${result.guestCount || ''}"></div>
+        <div class="field"><label class="label">${layout.nameLabel}</label><input class="input ocr-name" value="${escapeHtml(result.clientName)}"></div>
+        <div class="field ${layout.showVenue ? '' : 'hidden'}"><label class="label">会場</label><input class="input ocr-venue" value="${escapeHtml(result.venue)}"></div>
+        <div class="field ${layout.showGuests ? '' : 'hidden'}"><label class="label">人数</label><input class="input ocr-guests" type="number" min="0" value="${result.guestCount || ''}"></div>
       </div>
       <div class="grid-3">
-        <div class="field"><label class="label">挙式時間</label><input class="input ocr-ceremony-time" type="time" value="${escapeHtml(result.ceremonyTime || '')}"></div>
-        <div class="field"><label class="label">披露宴時間</label><input class="input ocr-reception-time" type="time" value="${escapeHtml(result.receptionTime || result.time || '')}"></div>
-        <div class="field"><label class="label">アレルギー</label><input class="input ocr-allergy" value="${escapeHtml(result.allergy || '')}"></div>
+        <div class="field ${layout.showCeremony ? '' : 'hidden'}"><label class="label">挙式時間</label><input class="input ocr-ceremony-time" type="time" value="${escapeHtml(result.ceremonyTime || '')}"></div>
+        <div class="field ${layout.showReception ? '' : 'hidden'}"><label class="label">披露宴時間</label><input class="input ocr-reception-time" type="time" value="${escapeHtml(result.receptionTime || result.time || '')}"></div>
+        <div class="field ${layout.showAllergy ? '' : 'hidden'}"><label class="label">アレルギー</label><input class="input ocr-allergy" value="${escapeHtml(result.allergy || '')}"></div>
       </div>
-      <div class="field">
+      <div class="field ${layout.showAllergy ? '' : 'hidden'}">
         <label class="label">フォームへ追加するアレルギー対象</label>
         <textarea class="textarea ocr-allergy-people" placeholder="例：卵 × 1名">${escapeHtml((result.allergyPeople || []).map(person => `${person.foods} × ${person.count}名`).join('\n'))}</textarea>
       </div>
       <div class="grid-2">
-        <div class="field"><label class="label">お子様メニュー</label><input class="input ocr-children" value="${escapeHtml((result.children || []).join(' / '))}"></div>
-        <div class="field"><label class="label">ケーキ</label><input class="input ocr-cake-type" value="${escapeHtml(result.cakeType || result.sizes.join(' + '))}"></div>
+        <div class="field ${layout.showChildren ? '' : 'hidden'}"><label class="label">お子様メニュー</label><input class="input ocr-children" value="${escapeHtml((result.children || []).join(' / '))}"></div>
+        <div class="field ${layout.showCake ? '' : 'hidden'}"><label class="label">ケーキ</label><input class="input ocr-cake-type" value="${escapeHtml(result.cakeType || result.sizes.join(' + '))}"></div>
       </div>
-      <div class="field">
+      <div class="field ${layout.showProducts ? '' : 'hidden'}">
         <div class="label">商品一覧</div>
         <div class="ocr-products-area">${renderOcrProductRows(result)}</div>
         <button type="button" class="btn-light add-ocr-product" style="width:100%;margin-top:8px;">＋ 商品を追加</button>
       </div>
-      <div class="grid-2">
+      <div class="grid-2 ${layout.showDelivery ? '' : 'hidden'}">
         <div class="field"><label class="label">納品日</label><input class="input ocr-delivery-date" type="date" value="${escapeHtml(result.deliveryDate || '')}"></div>
         <div class="field"><label class="label">納品場所</label><input class="input ocr-delivery-venue" value="${escapeHtml(result.deliveryVenue || '')}"></div>
       </div>
-      <div class="field"><label class="label">プレート文言</label><input class="input ocr-message" value="${escapeHtml(result.message || '')}"></div>
-      <div class="field"><label class="label">追加情報</label><textarea class="textarea ocr-extra-info">${escapeHtml(result.extraInfo || '')}</textarea></div>
-      <div class="check-grid" style="margin-bottom:12px;">
+      <div class="field ${layout.showMessage ? '' : 'hidden'}"><label class="label">プレート文言</label><input class="input ocr-message" value="${escapeHtml(result.message || '')}"></div>
+      <div class="field"><label class="label">${layout.extraLabel}</label><textarea class="textarea ocr-extra-info">${escapeHtml(result.extraInfo || '')}</textarea></div>
+      <div class="check-grid ${layout.showCakeChecks ? '' : 'hidden'}" style="margin-bottom:12px;">
         <label class="check-pill"><input type="checkbox" class="ocr-cake-cutting" ${result.cakeCutting ? 'checked' : ''}>入刀あり</label>
         <label class="check-pill"><input type="checkbox" class="ocr-first-bite" ${result.firstBite ? 'checked' : ''}>ファーストバイトあり</label>
       </div>
       ${result.corrections?.length ? `<div class="ocr-confidence-note"><strong>自動補正候補</strong><br>${result.corrections.map(escapeHtml).join('<br>')}</div>` : ''}
-      <div class="field"><label class="label">検出したケーキサイズ</label><input class="input ocr-sizes" value="${escapeHtml(result.sizes.join(' + '))}"></div>
+      <div class="field ${layout.showSizes ? '' : 'hidden'}"><label class="label">検出したケーキサイズ</label><input class="input ocr-sizes" value="${escapeHtml(result.sizes.join(' + '))}"></div>
       <div class="field"><label class="label">OCR全文</label><textarea class="textarea ocr-text">${escapeHtml(result.text)}</textarea></div>
       <button type="button" class="btn-dark apply-ocr-result">この結果を入力フォームへ反映</button>
     </article>`;
