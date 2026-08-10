@@ -1545,6 +1545,33 @@
   background: #fff;
 }
 .ocr-result-card .textarea { min-height: 120px; }
+.ocr-preview-wrap {
+  position: relative;
+  width: min(100%, 520px);
+  margin: 10px auto;
+  background: #111827;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.ocr-preview-image { display:block; width:100%; height:auto; }
+.ocr-preview-overlay { position:absolute; inset:0; pointer-events:none; }
+.ocr-field-box {
+  position:absolute;
+  border:2px solid #22c55e;
+  background:rgba(34,197,94,.08);
+  color:#fff;
+  font-size:9px;
+  text-shadow:0 1px 2px #000;
+  overflow:hidden;
+}
+.ocr-template-guide {
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  background:#f8fafc;
+  font-size:12px;
+  line-height:1.6;
+}
   </style>
 </head>
 
@@ -2192,6 +2219,71 @@ const ocrEls = {
   results: document.getElementById('ocrResults')
 };
 let ocrWorker = null;
+let ocrPendingFiles = [];
+
+// 座標は画像全体に対する比率。真正面の基準写真が揃ったら fields だけ調整する。
+const OCR_DOCUMENT_TEMPLATES = {
+  benefit: {
+    label: '特典発注依頼書（ハピネスプラン）',
+    documentType: 'ケーキ食伝',
+    orientation: '縦',
+    guide: '用紙の四隅を入れ、タイトルが水平になるよう撮影してください。手書き氏名とメッセージは確認必須です。',
+    fields: [
+      { key:'clientName', label:'お客様名', x:.10, y:.185, w:.75, h:.050, psm:'7' },
+      { key:'dateTime', label:'日時', x:.20, y:.238, w:.66, h:.048, psm:'7' },
+      { key:'guestCount', label:'人数', x:.10, y:.276, w:.76, h:.042, psm:'7', numeric:true },
+      { key:'venue', label:'会場', x:.10, y:.307, w:.76, h:.042, psm:'7' },
+      { key:'cakeSize', label:'ケーキサイズ', x:.24, y:.338, w:.64, h:.050, psm:'6' },
+      { key:'cakeType', label:'種類', x:.10, y:.410, w:.75, h:.045, psm:'7' },
+      { key:'message', label:'メッセージ', x:.10, y:.505, w:.75, h:.125, psm:'6' },
+      { key:'allergy', label:'アレルギー', x:.08, y:.625, w:.78, h:.055, psm:'7' },
+      { key:'room', label:'部屋番号', x:.08, y:.755, w:.78, h:.050, psm:'7', numeric:true }
+    ]
+  },
+  menu: {
+    label: '婚礼メニュー表・10日前最終',
+    documentType: 'メニュー表',
+    orientation: '縦',
+    guide: '用紙を一枚だけ平らに置き、左上を隠さず四隅をすべて入れてください。',
+    fields: [
+      { key:'dateTime', label:'日付・時間', x:.31, y:.090, w:.43, h:.075, psm:'6' },
+      { key:'clientName', label:'両家名', x:.31, y:.135, w:.43, h:.055, psm:'7' },
+      { key:'menu', label:'メニュー本文', x:.25, y:.190, w:.55, h:.430, psm:'6' },
+      { key:'allergy', label:'アレルギー', x:.20, y:.690, w:.30, h:.095, psm:'6' },
+      { key:'children', label:'お子様メニュー', x:.48, y:.690, w:.25, h:.100, psm:'6' },
+      { key:'cakeInfo', label:'ケーキ情報', x:.70, y:.690, w:.22, h:.105, psm:'6' }
+    ]
+  },
+  giftOrder: {
+    label: '婚礼注文書（引き菓子・ジャム）',
+    documentType: '施工日資料',
+    orientation: '縦',
+    guide: '注文書の外枠を画面内に収め、表の縦線が垂直になるよう撮影してください。',
+    fields: [
+      { key:'clientName', label:'新郎新婦名', x:.15, y:.300, w:.69, h:.080, psm:'6' },
+      { key:'dateTime', label:'挙式日・時間', x:.27, y:.365, w:.57, h:.060, psm:'6' },
+      { key:'items', label:'商品・数量', x:.14, y:.420, w:.72, h:.285, psm:'6' },
+      { key:'delivery', label:'納品日・場所', x:.15, y:.690, w:.70, h:.090, psm:'6' },
+      { key:'notes', label:'連絡事項', x:.15, y:.785, w:.70, h:.105, psm:'6' }
+    ]
+  },
+  final10: {
+    label: 'ブライダルチェックリスト・10日前最終',
+    documentType: '10日前資料',
+    orientation: '横',
+    guide: '文字が非常に細かいため、全体写真では主要項目のみ読みます。後日、左半分・右半分の専用撮影に拡張します。',
+    fields: [
+      { key:'dateTime', label:'婚礼日・時間', x:.06, y:.085, w:.43, h:.105, psm:'6' },
+      { key:'clientName', label:'新郎新婦名', x:.06, y:.155, w:.43, h:.105, psm:'6' },
+      { key:'venue', label:'会場', x:.23, y:.185, w:.27, h:.060, psm:'7' },
+      { key:'schedule', label:'当日進行', x:.06, y:.270, w:.43, h:.350, psm:'6' },
+      { key:'food', label:'料理・人数', x:.53, y:.165, w:.42, h:.280, psm:'6' },
+      { key:'cakeInfo', label:'ケーキ', x:.53, y:.390, w:.42, h:.105, psm:'6' },
+      { key:'allergy', label:'アレルギー・特記事項', x:.53, y:.430, w:.42, h:.160, psm:'6' },
+      { key:'gifts', label:'引き出物', x:.53, y:.650, w:.42, h:.190, psm:'6' }
+    ]
+  }
+};
     function todayStr(offset = 0) {
   const d = new Date();
 
@@ -2229,7 +2321,12 @@ function updateWeddingTenDaysDate() {
 }
 
 function normalizeOcrText(text = '') {
+  const circledNumbers = {
+    '⓪':'0','①':'1','②':'2','③':'3','④':'4','⑤':'5','⑥':'6','⑦':'7','⑧':'8','⑨':'9',
+    '⑩':'10','⑪':'11','⑫':'12','⑬':'13','⑭':'14','⑮':'15','⑯':'16','⑰':'17','⑱':'18','⑲':'19','⑳':'20'
+  };
   return String(text)
+    .replace(/[⓪①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/g, ch => circledNumbers[ch] || ch)
     .replace(/[０-９Ａ-Ｚａ-ｚ]/g, ch =>
       String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)
     )
@@ -2342,28 +2439,152 @@ function renderOcrResult(result, fileName, index) {
     </article>`;
 }
 
+function templateOptions(selected = 'benefit') {
+  return Object.entries(OCR_DOCUMENT_TEMPLATES)
+    .map(([key, template]) => `<option value="${key}" ${key === selected ? 'selected' : ''}>${escapeHtml(template.label)}</option>`)
+    .join('');
+}
+
+function templateOverlay(templateKey) {
+  const template = OCR_DOCUMENT_TEMPLATES[templateKey];
+  return template.fields.map(field => `
+    <span class="ocr-field-box" style="left:${field.x * 100}%;top:${field.y * 100}%;width:${field.w * 100}%;height:${field.h * 100}%">
+      ${escapeHtml(field.label)}
+    </span>`).join('');
+}
+
+function renderOcrPreparation(files) {
+  ocrPendingFiles.forEach(item => item.url && URL.revokeObjectURL(item.url));
+  ocrPendingFiles = files.map(file => ({ file, url: URL.createObjectURL(file) }));
+  ocrEls.progress.classList.add('hidden');
+  ocrEls.results.innerHTML = ocrPendingFiles.map((item, index) => `
+    <article class="ocr-result-card ocr-preparation-card" data-file-index="${index}">
+      <div class="item-title">${escapeHtml(item.file.name)}</div>
+      <div class="field" style="margin-top:10px;">
+        <label class="label">帳票種類を選択</label>
+        <select class="select ocr-template-select">${templateOptions()}</select>
+      </div>
+      <div class="ocr-template-guide"></div>
+      <div class="ocr-preview-wrap">
+        <img class="ocr-preview-image" src="${item.url}" alt="選択した帳票">
+        <div class="ocr-preview-overlay">${templateOverlay('benefit')}</div>
+      </div>
+      <div class="helper">緑枠が実際に読み取る範囲です。現在は仮位置のため、ずれがあっても後から調整できます。</div>
+      <button type="button" class="btn-dark run-template-ocr" style="width:100%;margin-top:10px;">この帳票を欄ごとに読み取る</button>
+    </article>`).join('');
+  ocrEls.results.querySelectorAll('.ocr-preparation-card').forEach(card => updateTemplatePreview(card));
+}
+
+function updateTemplatePreview(card) {
+  const key = card.querySelector('.ocr-template-select').value;
+  const template = OCR_DOCUMENT_TEMPLATES[key];
+  card.querySelector('.ocr-template-guide').innerHTML = `<strong>${escapeHtml(template.orientation)}帳票</strong><br>${escapeHtml(template.guide)}`;
+  card.querySelector('.ocr-preview-overlay').innerHTML = templateOverlay(key);
+}
+
+function loadImageSource(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('画像を開けませんでした。JPEGまたはPNGで試してください。')); };
+    image.src = url;
+  });
+}
+
+function createFieldCanvas(image, field) {
+  const sx = Math.max(0, Math.round(image.naturalWidth * field.x));
+  const sy = Math.max(0, Math.round(image.naturalHeight * field.y));
+  const sw = Math.max(1, Math.round(image.naturalWidth * field.w));
+  const sh = Math.max(1, Math.round(image.naturalHeight * field.h));
+  const scale = Math.max(2, Math.min(4, Math.ceil(1400 / sw)));
+  const canvas = document.createElement('canvas');
+  canvas.width = sw * scale;
+  canvas.height = sh * scale;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = pixels.data;
+  let mean = 0;
+  for (let i = 0; i < data.length; i += 4) mean += (data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114);
+  mean /= data.length / 4;
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114;
+    const value = Math.max(0, Math.min(255, (gray - mean) * 1.35 + 185));
+    data[i] = data[i + 1] = data[i + 2] = value;
+  }
+  context.putImageData(pixels, 0, 0);
+  return canvas;
+}
+
+function parseDateAndTime(text) {
+  const normalized = normalizeOcrText(text);
+  const dateMatch = normalized.match(/(20\d{2})\D{0,3}(\d{1,2})\D{0,3}(\d{1,2})/);
+  const timeMatch = normalized.match(/(?:^|\D)([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+  return {
+    date: dateMatch ? `${dateMatch[1]}-${String(dateMatch[2]).padStart(2,'0')}-${String(dateMatch[3]).padStart(2,'0')}` : '',
+    time: timeMatch ? `${String(timeMatch[1]).padStart(2,'0')}:${timeMatch[2]}` : ''
+  };
+}
+
+function buildTemplateResult(template, fieldTexts) {
+  const dateTime = parseDateAndTime(fieldTexts.dateTime || '');
+  const guestDigits = normalizeOcrText(fieldTexts.guestCount || '').match(/\d{1,4}/g) || [];
+  const cakeText = [fieldTexts.cakeSize, fieldTexts.cakeInfo].filter(Boolean).join(' ');
+  const sizes = [...cakeText.matchAll(/(?:9\s*cm|[3-7]\s*号|尺|\d{2,3}\s*(?:cm)?\s*[×xX]\s*\d{2,3}\s*cm)/gi)]
+    .map(match => match[0].replace(/\s+/g,''));
+  const detailText = Object.entries(fieldTexts).map(([key, value]) => {
+    const field = template.fields.find(item => item.key === key);
+    return `【${field?.label || key}】\n${normalizeOcrText(value)}`;
+  }).join('\n\n');
+  return {
+    documentType: template.documentType,
+    date: dateTime.date,
+    time: dateTime.time,
+    clientName: normalizeOcrText(fieldTexts.clientName || ''),
+    venue: normalizeOcrText(fieldTexts.venue || ''),
+    guestCount: guestDigits.length ? Number(guestDigits[guestDigits.length - 1]) : 0,
+    sizes: [...new Set(sizes)],
+    text: detailText
+  };
+}
+
+async function runTemplateOcr(card) {
+  const fileIndex = Number(card.dataset.fileIndex);
+  const pending = ocrPendingFiles[fileIndex];
+  if (!pending) return;
+  const templateKey = card.querySelector('.ocr-template-select').value;
+  const template = OCR_DOCUMENT_TEMPLATES[templateKey];
+  card.querySelector('.run-template-ocr').disabled = true;
+  try {
+    const [worker, image] = await Promise.all([getOcrWorker(), loadImageSource(pending.file)]);
+    const fieldTexts = {};
+    for (let index = 0; index < template.fields.length; index += 1) {
+      const field = template.fields[index];
+      setOcrProgress(`${field.label}を読み取っています（${index + 1}/${template.fields.length}）`, index / template.fields.length);
+      await worker.setParameters({ tessedit_pageseg_mode: field.psm || '7' });
+      const canvas = createFieldCanvas(image, field);
+      const recognized = await worker.recognize(canvas);
+      fieldTexts[field.key] = recognized.data.text || '';
+    }
+    const result = buildTemplateResult(template, fieldTexts);
+    setOcrProgress('欄別読み取りが完了しました。原本と照合してください。', 1);
+    card.outerHTML = renderOcrResult(result, pending.file.name, fileIndex);
+  } catch (error) {
+    console.error(error);
+    setOcrProgress(`読み取りに失敗しました：${error?.message || '画像を確認してください。'}`, 0);
+    card.querySelector('.run-template-ocr').disabled = false;
+  }
+}
+
 async function processOcrFiles(files) {
   if (!files.length) return;
   ocrEls.modal.classList.remove('hidden');
-  ocrEls.results.innerHTML = '';
-  try {
-    const worker = await getOcrWorker();
-    const results = [];
-    for (let index = 0; index < files.length; index += 1) {
-      setOcrProgress(`${index + 1}/${files.length}枚目を読み取っています…`, 0);
-      const recognized = await worker.recognize(files[index]);
-      const result = extractOcrFields(recognized.data.text || '');
-      results.push(renderOcrResult(result, files[index].name, index));
-      ocrEls.results.innerHTML = results.join('');
-    }
-    setOcrProgress(`${files.length}枚の読み取りが完了しました。`, 1);
-  } catch (error) {
-    console.error(error);
-    setOcrProgress(`読み取りに失敗しました：${error?.message || '画像形式と通信状態を確認してください。'}`, 0);
-  } finally {
-    ocrEls.cameraInput.value = '';
-    ocrEls.galleryInput.value = '';
-  }
+  renderOcrPreparation(files);
+  ocrEls.cameraInput.value = '';
+  ocrEls.galleryInput.value = '';
 }
 
 function applyOcrResult(card) {
@@ -3949,7 +4170,16 @@ if (!isWeddingOrAnniversaryCake) {
     ocrEls.cameraInput.addEventListener('change', event => processOcrFiles([...event.target.files]));
     ocrEls.galleryInput.addEventListener('change', event => processOcrFiles([...event.target.files]));
     ocrEls.closeBtn.addEventListener('click', () => ocrEls.modal.classList.add('hidden'));
+    ocrEls.results.addEventListener('change', event => {
+      if (!event.target.matches('.ocr-template-select')) return;
+      updateTemplatePreview(event.target.closest('.ocr-preparation-card'));
+    });
     ocrEls.results.addEventListener('click', event => {
+      const runButton = event.target.closest('.run-template-ocr');
+      if (runButton) {
+        runTemplateOcr(runButton.closest('.ocr-preparation-card'));
+        return;
+      }
       const button = event.target.closest('.apply-ocr-result');
       if (!button) return;
       applyOcrResult(button.closest('.ocr-result-card'));
