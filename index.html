@@ -2607,6 +2607,24 @@ function uniqueRelevantLines(lines, pattern) {
   return [...new Set(lines.filter(line => pattern.test(line)).map(line => line.replace(/^[・*＊\s]+/, '').trim()))];
 }
 
+function extractAllergyPeopleFromLines(lines) {
+  const primaryChoices = ['卵','乳','小麦','ナッツ','えび','かに','桃','りんご','なし','いちご','キウイ','バナナ','ごま','大豆','ゼラチン'];
+  return lines.flatMap(line => {
+    if (/アレルギー[\s:：]*(?:無|なし|無し)/.test(line)) return [];
+    const match = line.match(/^[・*＊\s]*(.+?)アレルギー\s*(\d+)?\s*名?/);
+    if (!match || !match[1].trim()) return [];
+    const foods = match[1].trim().replace(/[・、,／/]+$/g, '');
+    const tokens = foods.split(/[・、,／/]+/).map(value => value.trim()).filter(Boolean);
+    const primary = tokens.filter(value => primaryChoices.includes(value));
+    return [{
+      foods,
+      count: Number(match[2] || 1),
+      primary: primary.length ? primary : ['その他'],
+      note: line.replace(/^[・*＊\s]+/, '').trim()
+    }];
+  });
+}
+
 function extractFinalChecklistFields(rawText) {
   const text = normalizeOcrText(rawText);
   const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
@@ -2643,6 +2661,7 @@ function extractFinalChecklistFields(rawText) {
     ? rightBlock.slice(allergyStart, allergyEndRelative >= 0 ? allergyStart + 1 + allergyEndRelative : allergyStart + 15)
     : [];
   const allergyLines = uniqueRelevantLines(allergyBlock, /アレルギ|苦手|除去|妊婦|NG|メニュー依頼|山芋|生もの|料理なし|持込み食材/);
+  const allergyPeople = extractAllergyPeopleFromLines(allergyLines);
   const cakeStart = rightBlock.findIndex(line => /丸ショート|入刀|入力/.test(line));
   const cakeEndRelative = cakeStart >= 0 ? rightBlock.slice(cakeStart + 1).findIndex(line => /飲料|Wドリンク|印刷/.test(line)) : -1;
   const cakeBlock = cakeStart >= 0
@@ -2699,7 +2718,7 @@ function extractFinalChecklistFields(rawText) {
     clientName: isUsefulValue(clientName) ? clientName : '',
     venue: venueCandidate.replace(/全$/, '').trim(),
     guestCount: guestMatch ? Number(guestMatch[1]) : 0,
-    sizes: [], allergy: allergyLines.join(' / '), children: foodLines.filter(line => /お子/.test(line)),
+    sizes: [], allergy: allergyLines.join(' / '), allergyPeople, children: foodLines.filter(line => /お子/.test(line)),
     cakeType: hasCake ? cakeName : '', cakeCutting, firstBite,
     items: items.length ? items : [{ type: 'その他', name: '', quantity: 1 }],
     extraInfo, corrections: [], text
@@ -2801,6 +2820,10 @@ function renderOcrResult(result, fileName, index) {
         <div class="field"><label class="label">挙式時間</label><input class="input ocr-ceremony-time" type="time" value="${escapeHtml(result.ceremonyTime || '')}"></div>
         <div class="field"><label class="label">披露宴時間</label><input class="input ocr-reception-time" type="time" value="${escapeHtml(result.receptionTime || result.time || '')}"></div>
         <div class="field"><label class="label">アレルギー</label><input class="input ocr-allergy" value="${escapeHtml(result.allergy || '')}"></div>
+      </div>
+      <div class="field">
+        <label class="label">フォームへ追加するアレルギー対象</label>
+        <textarea class="textarea ocr-allergy-people" placeholder="例：卵 × 1名">${escapeHtml((result.allergyPeople || []).map(person => `${person.foods} × ${person.count}名`).join('\n'))}</textarea>
       </div>
       <div class="grid-2">
         <div class="field"><label class="label">お子様メニュー</label><input class="input ocr-children" value="${escapeHtml((result.children || []).join(' / '))}"></div>
@@ -3002,6 +3025,37 @@ function analyzePastedText() {
   ocrEls.results.innerHTML = renderOcrResult(result, '貼り付けた帳票', 0);
 }
 
+function parseOcrAllergyPeople(text = '') {
+  const knownPrimaryAllergens = new Set([
+    '卵', '乳', '小麦', 'ナッツ', 'えび', 'かに', '桃', 'りんご', 'なし',
+    'いちご', 'キウイ', 'バナナ', 'ごま', '大豆', 'ゼラチン'
+  ]);
+
+  return String(text)
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      const match = line.match(/^(.+?)\s*[xX×✕]\s*(\d+)\s*名?$/);
+      const foods = (match?.[1] || line)
+        .replace(/[アレルギー食材：:]+$/g, '')
+        .trim();
+      const count = Math.max(1, Number(match?.[2] || 1));
+      const foodNames = foods.split(/[・、,／/]+/).map(name => name.trim()).filter(Boolean);
+      const primary = foodNames.filter(name => knownPrimaryAllergens.has(name));
+
+      return {
+        personName: `${foods}アレルギー`,
+        primary: primary.length ? primary : ['その他'],
+        familyChecks: {},
+        finalNg: foods,
+        method: '要確認',
+        count,
+        note: `${foods}アレルギー ${count}名（OCR取込・要原本確認）`
+      };
+    });
+}
+
 function applyOcrResult(card) {
   const value = selector => card.querySelector(selector)?.value?.trim() || '';
   const productRows = [...card.querySelectorAll('.ocr-product-row')];
@@ -3050,6 +3104,12 @@ function applyOcrResult(card) {
     if (extraInfo) itemCard.querySelector('.item-notes').value = extraInfo;
   });
   renumberItems();
+  const importedAllergyPeople = parseOcrAllergyPeople(value('.ocr-allergy-people'));
+  if (importedAllergyPeople.length) {
+    els.masterAllergyArea.innerHTML = '';
+    importedAllergyPeople.slice().reverse().forEach(person => addMasterAllergyPerson(person));
+    updateAllergyCount();
+  }
   const rawText = value('.ocr-text');
   const structuredNotes = [
     value('.ocr-ceremony-time') ? `挙式 ${value('.ocr-ceremony-time')}` : '',
