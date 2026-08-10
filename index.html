@@ -2310,6 +2310,15 @@ const OCR_DOCUMENT_TEMPLATES = {
       { key:'allergy', label:'アレルギー・特記事項', x:.53, y:.430, w:.42, h:.160, psm:'6' },
       { key:'gifts', label:'引き出物', x:.53, y:.650, w:.42, h:.190, psm:'6' }
     ]
+  },
+  weddingSchedule: {
+    label: '婚礼一覧表（一括登録）',
+    documentType: '婚礼一覧表',
+    orientation: '横',
+    guide: '用紙全体を正面から撮影してください。小さな表のため、iPhone写真の文字コピー→「文字取込」の方が高精度です。',
+    fields: [
+      { key:'scheduleTable', label:'日付・時間・会場・人数・両家名', x:.07, y:.105, w:.88, h:.790, psm:'6' }
+    ]
   }
 };
     function todayStr(offset = 0) {
@@ -2361,6 +2370,7 @@ function normalizeOcrText(text = '') {
     .replace(/：/g, ':')
     .replace(/[／]/g, '/')
     .replace(/[‐－―]/g, '-')
+    .replace(/举/g, '挙')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -2725,8 +2735,101 @@ function extractFinalChecklistFields(rawText) {
   };
 }
 
+function extractWeddingScheduleFields(rawText) {
+  const text = normalizeOcrText(rawText);
+  const year = Number(text.match(/(20\d{2})\s*年/)?.[1] || new Date().getFullYear());
+  const peopleStart = text.search(/婚礼\s*\n?人数|人数\s*\n?挙式名/);
+  const namesStart = text.search(/挙式名[（(]宴席名[）)]/);
+  const staffStart = text.search(/成約担当/);
+  const scheduleText = text.slice(0, peopleStart > 0 ? peopleStart : text.length);
+  const peopleText = peopleStart >= 0 && namesStart > peopleStart ? text.slice(peopleStart, namesStart) : '';
+  const namesText = namesStart >= 0 ? text.slice(namesStart, staffStart > namesStart ? staffStart : text.length) : '';
+
+  const clientNames = [];
+  let nameBuffer = '';
+  namesText.split('\n').forEach(line => {
+    nameBuffer += ` ${line}`;
+    if (!/(?:ご|[\d）)])?両家挙式/.test(nameBuffer)) return;
+    const households = [...nameBuffer.replace(/豕/g, '家').matchAll(/([一-龠々ァ-ヶ]{1,10}家)/g)]
+      .map(match => match[1])
+      .filter(name => !/^ご?両家$/.test(name));
+    clientNames.push(households.length >= 2 ? households.slice(-2).join(' ') : (households[0] || ''));
+    nameBuffer = '';
+  });
+  const guestCounts = peopleText.split('\n').map(line => {
+    const cleaned = line.trim();
+    const splitCorrection = cleaned.match(/^1\s+(\d{2,3})(?:\s|$)/);
+    const compactCorrection = cleaned.match(/^(\d)(?:1)\1$/);
+    const match = cleaned.match(/^(\d{1,3})(?:\s|[（(]|$)/);
+    const count = Number(splitCorrection?.[1] || compactCorrection?.[1] || match?.[1] || 0);
+    return count > 0 && count <= 200 ? count : 0;
+  }).filter(Boolean);
+
+  const scheduleLines = scheduleText.split('\n').map(line => line.trim()).filter(Boolean);
+  const dateQueue = [];
+  const scheduleRows = [];
+  let lastDate = '';
+  let current = null;
+  const venuePattern = /(三笠|CHELSEA|チェルシー|ラ・?メゾン|レストラン桂姫|桂姫|ザ・?コッツウォルズ[^　\n]*?軽井沢)/i;
+  const finishCurrent = () => {
+    if (!current || (!current.ceremonyTime && !current.receptionTime && !current.venue)) return;
+    scheduleRows.push(current);
+    lastDate = current.date || lastDate;
+    current = null;
+  };
+  const ensureCurrent = () => {
+    if (!current) current = { date: dateQueue.shift() || lastDate, ceremonyTime: '', receptionTime: '', venue: '', notes: '' };
+    return current;
+  };
+
+  scheduleLines.forEach(line => {
+    const dates = [...line.matchAll(/(?:^|\D)(\d{1,2})\s*\/\s*(\d{1,2})(?=\D|$)/g)];
+    dates.forEach(match => dateQueue.push(`${year}-${String(match[1]).padStart(2, '0')}-${String(match[2]).padStart(2, '0')}`));
+    const ranges = [...line.matchAll(/([01]?\d|2[0-3])\s*:\s*([0-5]\d)\s*[~～〜-]\s*(?:[01]?\d|2[0-3])\s*:\s*[0-5]\d/g)]
+      .map(match => `${String(match[1]).padStart(2, '0')}:${match[2]}`);
+    ranges.forEach(time => {
+      const row = ensureCurrent();
+      if (!row.ceremonyTime) row.ceremonyTime = time;
+      else if (!row.receptionTime) row.receptionTime = time;
+      else {
+        finishCurrent();
+        ensureCurrent().ceremonyTime = time;
+      }
+    });
+    const venue = line.match(venuePattern)?.[1] || '';
+    if (venue) {
+      const row = ensureCurrent();
+      row.venue = venue
+        .replace(/チェルシー/i, 'CHELSEA')
+        .replace(/ザ・?コッツウォルズ[^　\n]*?軽井沢/i, 'ザ・コッツウォルズハウス軽井沢');
+    }
+    if (/式のみ|会食|宿なし|宿[?？]/.test(line)) ensureCurrent().notes = line;
+    if (current?.ceremonyTime && current?.receptionTime && current?.venue) finishCurrent();
+  });
+  finishCurrent();
+
+  const rowCount = Math.max(clientNames.length, guestCounts.length, scheduleRows.length);
+  const bulkOrders = Array.from({ length: rowCount }, (_, index) => ({
+    date: scheduleRows[index]?.date || '',
+    ceremonyTime: scheduleRows[index]?.ceremonyTime || '',
+    receptionTime: scheduleRows[index]?.receptionTime || '',
+    venue: scheduleRows[index]?.venue || '',
+    guestCount: guestCounts[index] || 0,
+    clientName: clientNames[index] || '',
+    notes: scheduleRows[index]?.notes || ''
+  }));
+
+  return {
+    documentType: '婚礼一覧表', targetCategory: '婚礼', bulkOrders,
+    corrections: ['表の列順が崩れた箇所は、登録前に原本と照合してください。'], text
+  };
+}
+
 function extractPastedDocument(rawText) {
   const text = normalizeOcrText(rawText);
+  if (/挙式時間/.test(text) && /挙式名[（(]宴席名[）)]/.test(text) && /成約担当/.test(text)) {
+    return extractWeddingScheduleFields(rawText);
+  }
   if (/ブライダルチェックリスト|10\s*日前最終|10\s*日前資料/.test(text)) {
     return extractFinalChecklistFields(rawText);
   }
@@ -2832,7 +2935,46 @@ function getOcrResultLayout(result) {
   };
 }
 
+function renderWeddingScheduleResult(result, fileName, index) {
+  const rows = result.bulkOrders || [];
+  return `
+    <article class="ocr-result-card ocr-bulk-card" data-ocr-result="${index}">
+      <div class="item-head">
+        <div>
+          <div class="item-title">${escapeHtml(fileName)}</div>
+          <div class="meta">自動判別：婚礼一覧表 / ${rows.length}件候補</div>
+        </div>
+        <span class="badge">一括取込・要確認</span>
+      </div>
+      <div class="helper" style="margin-bottom:10px;">原本と照合し、登録する行だけ左のチェックを残してください。日付が空欄の行は登録できません。</div>
+      <div class="ocr-bulk-orders">
+        ${rows.map((row, rowIndex) => `
+          <div class="item-card ocr-bulk-row" data-bulk-index="${rowIndex}">
+            <div class="item-head">
+              <label class="check-pill"><input type="checkbox" class="ocr-bulk-selected" checked> 予約 ${rowIndex + 1}</label>
+              <span class="badge">${escapeHtml(row.clientName || '両家名要確認')}</span>
+            </div>
+            <div class="grid-3">
+              <div class="field"><label class="label">婚礼日</label><input class="input ocr-bulk-date" type="date" value="${escapeHtml(row.date)}"></div>
+              <div class="field"><label class="label">挙式時間</label><input class="input ocr-bulk-ceremony" type="time" value="${escapeHtml(row.ceremonyTime)}"></div>
+              <div class="field"><label class="label">披露宴時間</label><input class="input ocr-bulk-reception" type="time" value="${escapeHtml(row.receptionTime)}"></div>
+            </div>
+            <div class="grid-3">
+              <div class="field"><label class="label">新郎新婦名・両家名</label><input class="input ocr-bulk-name" value="${escapeHtml(row.clientName)}"></div>
+              <div class="field"><label class="label">会場</label><input class="input ocr-bulk-venue" value="${escapeHtml(row.venue)}"></div>
+              <div class="field"><label class="label">人数</label><input class="input ocr-bulk-guests" type="number" min="0" value="${row.guestCount || ''}"></div>
+            </div>
+            <div class="field"><label class="label">備考</label><input class="input ocr-bulk-notes" value="${escapeHtml(row.notes)}"></div>
+          </div>`).join('')}
+      </div>
+      ${result.corrections?.length ? `<div class="ocr-confidence-note">${result.corrections.map(escapeHtml).join('<br>')}</div>` : ''}
+      <details style="margin-top:10px;"><summary>OCR全文を確認</summary><textarea class="textarea ocr-text" style="margin-top:8px;">${escapeHtml(result.text)}</textarea></details>
+      <button type="button" class="btn-dark apply-ocr-bulk" style="width:100%;margin-top:12px;">チェックした予約を一括登録</button>
+    </article>`;
+}
+
 function renderOcrResult(result, fileName, index) {
+  if (result.documentType === '婚礼一覧表') return renderWeddingScheduleResult(result, fileName, index);
   const layout = getOcrResultLayout(result);
   return `
     <article class="ocr-result-card" data-ocr-result="${index}">
@@ -2848,7 +2990,7 @@ function renderOcrResult(result, fileName, index) {
           ${categories.map(category => `<option ${category === (result.targetCategory || '婚礼') ? 'selected' : ''}>${category}</option>`).join('')}
         </select></div>
         <div class="field"><label class="label">書類種類</label><select class="select ocr-type">
-          ${['施工日資料','10日前資料','メニュー表','ケーキ食伝','引き菓子食伝','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
+          ${['施工日資料','10日前資料','メニュー表','ケーキ食伝','引き菓子食伝','婚礼一覧表','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
         </select></div>
         <div class="field"><label class="label">${layout.dateLabel}</label><input class="input ocr-date" type="date" value="${escapeHtml(result.date)}"></div>
         <div class="field ${layout.showTime ? '' : 'hidden'}"><label class="label">${layout.timeLabel}</label><input class="input ocr-time" type="time" value="${escapeHtml(result.time)}"></div>
@@ -2984,6 +3126,9 @@ function parseDateAndTime(text) {
 }
 
 function buildTemplateResult(template, fieldTexts) {
+  if (template.documentType === '婚礼一覧表') {
+    return extractWeddingScheduleFields(fieldTexts.scheduleTable || '');
+  }
   const dateTime = parseDateAndTime(fieldTexts.dateTime || '');
   const guestDigits = normalizeOcrText(fieldTexts.guestCount || '').match(/\d{1,4}/g) || [];
   const cakeText = [fieldTexts.cakeSize, fieldTexts.cakeInfo].filter(Boolean).join(' ');
@@ -3173,6 +3318,74 @@ function applyOcrResult(card) {
   ocrEls.modal.classList.add('hidden');
   viewToggle.querySelector('[data-view="form"]').click();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function applyWeddingScheduleBulk(card) {
+  const selectedRows = [...card.querySelectorAll('.ocr-bulk-row')]
+    .filter(row => row.querySelector('.ocr-bulk-selected')?.checked);
+  if (!selectedRows.length) return window.alert('登録する予約にチェックを入れてください。');
+
+  const value = (row, selector) => row.querySelector(selector)?.value?.trim() || '';
+  const candidates = selectedRows.map(row => ({
+    date: value(row, '.ocr-bulk-date'),
+    ceremonyTime: value(row, '.ocr-bulk-ceremony'),
+    time: value(row, '.ocr-bulk-reception') || value(row, '.ocr-bulk-ceremony'),
+    clientName: value(row, '.ocr-bulk-name'),
+    venue: value(row, '.ocr-bulk-venue'),
+    guestCount: Number(value(row, '.ocr-bulk-guests') || 0),
+    notes: value(row, '.ocr-bulk-notes')
+  }));
+  const invalid = candidates.filter(order => !order.date || !order.clientName);
+  if (invalid.length) {
+    window.alert(`婚礼日または両家名が空欄の予約が ${invalid.length}件あります。\n入力するか、左のチェックを外してください。`);
+    return;
+  }
+  if (!window.confirm(`${candidates.length}件の婚礼予約を登録しますか？\n各予約の商品は「内容未確認」として登録します。`)) return;
+
+  const orders = loadOrders();
+  const duplicateKey = order => [order.date || '', order.time || '', String(order.clientName || '').replace(/\s+/g, '')].join('::');
+  const existingKeys = new Set(orders.map(duplicateKey));
+  let added = 0;
+  let duplicates = 0;
+  candidates.forEach(candidate => {
+    const key = duplicateKey(candidate);
+    if (existingKeys.has(key)) {
+      duplicates += 1;
+      return;
+    }
+    const createdAt = Date.now() + added;
+    orders.push({
+      id: `${createdAt}-${Math.floor(Math.random() * 1000)}`,
+      createdAt,
+      category: '婚礼',
+      date: candidate.date,
+      time: candidate.time,
+      clientName: candidate.clientName,
+      venue: candidate.venue,
+      guestCount: candidate.guestCount,
+      coursePrice: 0,
+      status: '未確認',
+      afternoonTeaType: '',
+      orderNotes: [candidate.ceremonyTime ? `挙式 ${candidate.ceremonyTime}` : '', candidate.notes, '婚礼一覧表から一括取込'].filter(Boolean).join('\n'),
+      weddingDocuments: {
+        tenDaysDate: dateOffsetStr(candidate.date, -10),
+        constructionChecked: false, tenDaysChecked: false, menuChecked: false, cakeSlipChecked: false, notes: ''
+      },
+      allergyMaster: { people: [] },
+      items: [{
+        type: 'その他', reportType: '', name: '内容未確認', quantity: 1, cost: 0,
+        size: '', squareSize: '', multiSize: '', plateMessage: '', dessertCostNote: '', options: [], notes: ''
+      }]
+    });
+    existingKeys.add(key);
+    added += 1;
+  });
+  saveOrders(orders);
+  rebuildVenueMemoryFromOrders(orders);
+  renderOrders();
+  ocrEls.modal.classList.add('hidden');
+  viewToggle.querySelector('[data-view="list"]').click();
+  window.alert(`${added}件を登録しました。${duplicates ? `\n重複 ${duplicates}件は登録していません。` : ''}`);
 }
 function updateAllergyCount() {
 
@@ -4746,6 +4959,11 @@ if (!isWeddingOrAnniversaryCake) {
       const runButton = event.target.closest('.run-template-ocr');
       if (runButton) {
         runTemplateOcr(runButton.closest('.ocr-preparation-card'));
+        return;
+      }
+      const bulkButton = event.target.closest('.apply-ocr-bulk');
+      if (bulkButton) {
+        applyWeddingScheduleBulk(bulkButton.closest('.ocr-bulk-card'));
         return;
       }
       const button = event.target.closest('.apply-ocr-result');
