@@ -2617,22 +2617,44 @@ function extractFinalChecklistFields(rawText) {
     const year = /^R/i.test(match[1]) ? 2018 + Number(match[1].replace(/\D/g, '')) : Number(match[1]);
     return `${year}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
   }).sort();
-  const times = [...topText.matchAll(/(?:^|\D)([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/g)]
-    .map(match => `${String(match[1]).padStart(2, '0')}:${match[2]}`);
+  const ceremonyHourMatch = topText.match(/(\d{1,2})\s*\n\s*挙式スタイル/);
+  const receptionRangeMatch = topText.match(/([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)\s*[~～-]\s*(?:[01]?\d|2[0-3])/);
+  const ceremonyTime = ceremonyHourMatch ? `${String(ceremonyHourMatch[1]).padStart(2, '0')}:00` : '';
+  const receptionTime = receptionRangeMatch ? `${String(receptionRangeMatch[1]).padStart(2, '0')}:${receptionRangeMatch[2]}` : '';
   const guestMatch = topText.match(/(?:プラン|人数|列席)[\s\S]{0,60}?(\d{1,3})\s*名/);
-  const venueMatch = topText.match(/会場[\s:：/]*([^\n]{1,20})/);
-  const nameLines = uniqueRelevantLines(topLines, /新郎|新婦|お名前/)
-    .filter(line => !/新郎下|新婦下|新郎父|新婦父|住所|TEL|電話/.test(line));
-  const clientName = nameLines.length
-    ? nameLines.join(' / ').replace(/新郎新婦|お名前|新郎|新婦|[:：]/g, '').trim()
-    : '';
+  const venueCandidate = topLines.find(line => /三笠|桂姫|鳳凰|レストラン|チェルシー|音羽/.test(line) && !/音羽式|音羽コース/.test(line)) || '';
+  const groomCandidate = topLines
+    .map(line => line.replace(/\s*様.*$/, '').trim())
+    .find(line => /^[一-龠々]{1,6}\s+[一-龠々]{1,6}$/.test(line) && !/出身|司式|担当|東京都|長野市/.test(line)) || '';
+  const brideMatch = topText.match(/[（(]([一-龠々]{1,6})[）)]\s*([一-龠々]{1,6})/);
+  const brideCandidate = brideMatch ? `${brideMatch[1]} ${brideMatch[2].replace(/上記.*$/, '')}` : '';
+  const clientName = [groomCandidate, brideCandidate].filter(Boolean).join(' / ');
 
-  const foodLines = uniqueRelevantLines(lines, /コース\s*\d|デザート|ビュッフェ|お子|料理/)
+  const rightStart = lines.findIndex(line => /コース\s*7品|18フレンチ/.test(line));
+  const rightEndRelative = rightStart >= 0 ? lines.slice(rightStart + 1).findIndex(line => /印刷|招待状/.test(line)) : -1;
+  const rightBlock = rightStart >= 0
+    ? lines.slice(rightStart, rightEndRelative >= 0 ? rightStart + 1 + rightEndRelative : rightStart + 70)
+    : lines;
+  const foodLines = uniqueRelevantLines(rightBlock, /コース\s*\d|デザート|ビュッフェ|お子|料理/)
     .filter(line => !/料理長|料理教室/.test(line));
-  const allergyLines = uniqueRelevantLines(lines, /アレルギ|苦手|除去|妊婦|NG|メニュー依頼|山芋|生もの/);
-  const cakeLines = uniqueRelevantLines(lines, /ケーキ|入刀|ファーストバイト|サーブ|生\s*[\d,]+|名様分/);
+  const allergyStart = rightBlock.findIndex(line => /メニュー依頼/.test(line));
+  const allergyEndRelative = allergyStart >= 0 ? rightBlock.slice(allergyStart + 1).findIndex(line => /飲料|Wドリンク|印刷/.test(line)) : -1;
+  const allergyBlock = allergyStart >= 0
+    ? rightBlock.slice(allergyStart, allergyEndRelative >= 0 ? allergyStart + 1 + allergyEndRelative : allergyStart + 15)
+    : [];
+  const allergyLines = uniqueRelevantLines(allergyBlock, /アレルギ|苦手|除去|妊婦|NG|メニュー依頼|山芋|生もの|料理なし|持込み食材/);
+  const cakeStart = rightBlock.findIndex(line => /丸ショート|入刀|入力/.test(line));
+  const cakeEndRelative = cakeStart >= 0 ? rightBlock.slice(cakeStart + 1).findIndex(line => /飲料|Wドリンク|印刷/.test(line)) : -1;
+  const cakeBlock = cakeStart >= 0
+    ? rightBlock.slice(cakeStart, cakeEndRelative >= 0 ? cakeStart + 1 + cakeEndRelative : cakeStart + 25)
+    : [];
+  const cakeBlockText = cakeBlock.join('\n');
+  const cakeLines = uniqueRelevantLines(cakeBlock, /ショート|ケーキ|入刀|入力|ファーストバイト|サーブ|トッピング|名様分|追加@|生$/);
 
-  const giftStart = lines.findIndex(line => /引出物|引き出物|引き菓子/.test(line));
+  let giftStart = lines.findIndex(line => /引出物|引き出物|引き菓子/.test(line));
+  if (giftStart < 0) {
+    giftStart = lines.findIndex((line, index) => line === '引' && lines[index + 1] === '出' && lines[index + 2] === '物');
+  }
   const giftEndRelative = giftStart >= 0
     ? lines.slice(giftStart + 1).findIndex(line => /写真|スナップ|記念品|備考/.test(line))
     : -1;
@@ -2640,39 +2662,45 @@ function extractFinalChecklistFields(rawText) {
     ? lines.slice(giftStart, giftEndRelative >= 0 ? giftStart + 1 + giftEndRelative : giftStart + 18)
     : [];
   const giftLines = uniqueRelevantLines(giftBlock, /パウンド|引き菓子|ギフト|ジャム|アローム|クッキー|フィナンシェ|マドレーヌ/);
-  const giftItems = giftLines
+  const giftBaseLines = giftBlock.filter(line => /パウンド|ジャム|アローム|クッキー|フィナンシェ|マドレーヌ/.test(line));
+  const giftFlavorLines = giftBlock.filter(line => /音羽.*(?:イチゴ|リンゴ|マーマレード)|(?:イチゴ|リンゴ|マーマレード)/.test(line));
+  const giftItemLines = giftFlavorLines.length && giftBaseLines.length >= giftFlavorLines.length
+    ? giftFlavorLines.map((flavor, index) => `${giftBaseLines[index]} ${flavor}`)
+    : giftLines;
+  const giftItems = giftItemLines
     .filter(line => !/引出物|引き出物/.test(line) || /パウンド|ジャム|アローム|クッキー|フィナンシェ|マドレーヌ/.test(line))
     .map(line => {
-      const numbers = [...line.matchAll(/\d{1,3}(?:,\d{3})*/g)].map(match => Number(match[0].replace(/,/g, '')));
-      const quantity = numbers.length ? numbers.at(-1) : 0;
+      const quantityMatch = line.match(/[×xX✕]\s*(\d{1,3})/);
+      const quantity = quantityMatch ? Number(quantityMatch[1]) : 0;
       return {
         type: 'ギフト',
         name: line.replace(/(?:@|＠)?\s*[\d,]+(?:円)?\s*[×xX✕]\s*\d+.*$/, '').replace(/\s+\d+\s*$/, '').trim(),
         quantity
       };
     });
-  const hasCake = cakeLines.some(line => /ケーキ|入刀|ファーストバイト|生\s*[\d,]+/.test(line));
+  const cakeName = cakeBlock.find(line => /丸ショート|角ショート|ウエディングケーキ|ウェディングケーキ/.test(line))?.replace(/^[■□\s]+/, '') || 'ウエディングケーキ';
+  const hasCake = cakeLines.length > 0;
   const items = [
-    ...(hasCake ? [{ type: 'ウエディングケーキ', name: 'ウエディングケーキ', quantity: 1 }] : []),
+    ...(hasCake ? [{ type: 'ウエディングケーキ', name: cakeName, quantity: 1 }] : []),
     ...giftItems
   ];
-  const cakeCutting = cakeLines.some(line => /入刀[\s/:：]*(?:有|あり)/.test(line));
-  const firstBite = cakeLines.some(line => /ファーストバイト[\s/:：]*(?:有|あり)/.test(line));
+  const cakeCutting = /(?:入刀|入力)/.test(cakeBlockText) && /有/.test(cakeBlockText);
+  const firstBite = /ファーストバイト/.test(cakeBlockText) && /有/.test(cakeBlockText);
   const extraInfo = [
     foodLines.length ? `【料理・デザート】\n${foodLines.join('\n')}` : '',
     allergyLines.length ? `【アレルギー・個別対応】\n${allergyLines.join('\n')}` : '',
     cakeLines.length ? `【ケーキ】\n${cakeLines.join('\n')}` : '',
-    giftLines.length ? `【引き菓子】\n${giftLines.join('\n')}` : ''
+    giftItemLines.length ? `【引き菓子】\n${giftItemLines.join('\n')}` : ''
   ].filter(Boolean).join('\n\n');
   return {
     documentType: '10日前資料', targetCategory: '婚礼',
-    date: dates.at(-1) || '', time: times[1] || times[0] || '',
-    ceremonyTime: times[0] || '', receptionTime: times[1] || '',
+    date: dates.at(-1) || '', time: receptionTime || ceremonyTime,
+    ceremonyTime, receptionTime,
     clientName: isUsefulValue(clientName) ? clientName : '',
-    venue: venueMatch && isUsefulValue(venueMatch[1]) ? venueMatch[1].trim() : '',
+    venue: venueCandidate.replace(/全$/, '').trim(),
     guestCount: guestMatch ? Number(guestMatch[1]) : 0,
     sizes: [], allergy: allergyLines.join(' / '), children: foodLines.filter(line => /お子/.test(line)),
-    cakeType: hasCake ? 'ウエディングケーキ' : '', cakeCutting, firstBite,
+    cakeType: hasCake ? cakeName : '', cakeCutting, firstBite,
     items: items.length ? items : [{ type: 'その他', name: '', quantity: 1 }],
     extraInfo, corrections: [], text
   };
