@@ -2990,8 +2990,93 @@ function extractOperationalFormFields(rawText, kind) {
   };
 }
 
+function extractBanquetMemoFields(rawText) {
+  const text = normalizeOcrText(rawText);
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  const valueFor = label => {
+    const match = text.match(new RegExp(`(?:^|\\n)${label}\\s*[:：]\\s*([^\\n]*)`, 'm'));
+    return match?.[1]?.trim() || '';
+  };
+  const dateTime = commonPastedDateTime(valueFor('利用日') || text);
+  const rangeFrom = value => {
+    const match = String(value || '').match(/([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)\s*[~～-]\s*([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+    return match ? {
+      start: `${String(match[1]).padStart(2, '0')}:${match[2]}`,
+      end: `${String(match[3]).padStart(2, '0')}:${match[4]}`
+    } : { start: '', end: '' };
+  };
+  const section = (heading, nextHeadings) => {
+    const start = lines.findIndex(line => new RegExp(`^[■□]?${heading}$`).test(line));
+    if (start < 0) return [];
+    const rest = lines.slice(start + 1);
+    const end = rest.findIndex(line => nextHeadings.some(next => new RegExp(`^[■□]?${next}$`).test(line)));
+    return end < 0 ? rest : rest.slice(0, end);
+  };
+  const headings = ['宴会','会議','食事','ドリンク','注意事項','デザートメモ','案内看板','備考','会場レイアウトの手書きメモ'];
+  const otherHeadings = heading => headings.filter(name => name !== heading);
+  const banquetLines = section('宴会', otherHeadings('宴会'));
+  const meetingLines = section('会議', otherHeadings('会議'));
+  const mealLines = section('食事', otherHeadings('食事'));
+  const drinkLines = section('ドリンク', otherHeadings('ドリンク'));
+  const cautionLines = section('注意事項', otherHeadings('注意事項'));
+  const dessertLines = section('デザートメモ', otherHeadings('デザートメモ'));
+  const signLines = section('案内看板', otherHeadings('案内看板'));
+  const noteLines = section('備考', otherHeadings('備考'));
+  const layoutLines = section('会場レイアウトの手書きメモ', otherHeadings('会場レイアウトの手書きメモ'));
+  const operationalLines = mealLines.length ? mealLines : banquetLines;
+  const operationTimeLine = operationalLines.find(line => /^時間/.test(line)) || '';
+  const operationRange = rangeFrom(operationTimeLine);
+  const operationContentLine = operationalLines.find(line => /^(?:内容|形式)/.test(line)) || '';
+  const operationContent = operationContentLine.replace(/^(?:内容|形式)[\s:：]*/, '').trim();
+  const priceLine = mealLines.length
+    ? (mealLines.find(line => /^単価/.test(line)) || '')
+    : (banquetLines.find(line => /^料理/.test(line)) || '');
+  const priceMatch = priceLine.match(/([\d,]{3,9})/);
+  const guestMatch = valueFor('人数').match(/\d{1,4}/);
+  const dessertName = dessertLines
+    .map(line => line.replace(/^[・*＊\s]+/, '').trim())
+    .filter(Boolean)
+    .join(' / ');
+  const itemType = dessertName ? '皿盛りデザート' : 'その他';
+  const itemName = dessertName || operationContent || '宴会内容確認';
+  const extraInfo = [
+    banquetLines.length ? `【宴会】\n${banquetLines.join('\n')}` : '',
+    meetingLines.length ? `【会議】\n${meetingLines.join('\n')}` : '',
+    mealLines.length ? `【食事】\n${mealLines.join('\n')}` : '',
+    drinkLines.length ? `【ドリンク】\n${drinkLines.join('\n')}` : '',
+    cautionLines.length ? `【注意事項】\n${cautionLines.join('\n')}` : '',
+    dessertLines.length ? `【デザートメモ】\n${dessertLines.join('\n')}` : '',
+    signLines.length ? `【案内看板】\n${signLines.join('\n')}` : '',
+    noteLines.length ? `【備考】\n${noteLines.join('\n')}` : '',
+    layoutLines.length ? `【会場レイアウトの手書きメモ】\n${layoutLines.join('\n')}` : '',
+    valueFor('担当者') ? `担当者：${valueFor('担当者')}` : '',
+    valueFor('幹事') ? `幹事：${valueFor('幹事')}` : '',
+    valueFor('幹事・担当者') ? `幹事・担当者：${valueFor('幹事・担当者')}` : '',
+    valueFor('予約担当') ? `予約担当：${valueFor('予約担当')}` : '',
+    valueFor('支払方法') ? `支払方法：${valueFor('支払方法')}` : '',
+    valueFor('合計予定金額') ? `合計予定金額：${valueFor('合計予定金額')}` : '',
+    operationRange.end ? `終了時間：${operationRange.end}` : ''
+  ].filter(Boolean).join('\n\n');
+  return {
+    documentType: '宴会受注メモ', targetCategory: '宴会',
+    date: dateTime.date, time: operationRange.start || dateTime.time,
+    ceremonyTime: '', receptionTime: '',
+    clientName: valueFor('宴席名') || valueFor('団体名') || valueFor('団体・お客様名'),
+    venue: valueFor('会場'), guestCount: guestMatch ? Number(guestMatch[0]) : 0,
+    coursePrice: priceMatch ? Number(priceMatch[1].replace(/,/g, '')) : 0,
+    sizes: [], allergy: '', allergyPeople: [], children: [],
+    cakeType: '', cakeCutting: false, firstBite: false,
+    itemType, itemName, itemQuantity: 1,
+    items: [{ type: itemType, name: itemName, quantity: 1 }],
+    message: '', extraInfo, corrections: [], text
+  };
+}
+
 function extractPastedDocument(rawText) {
   const text = normalizeOcrText(rawText);
+  if (/宴会受注メモ/.test(text) || (/利用日[：:]?/.test(text) && /団体名[：:]?/.test(text) && /■?デザートメモ/.test(text))) {
+    return extractBanquetMemoFields(rawText);
+  }
   const fixedSchedule = extractFixedWeddingScheduleFields(rawText);
   if (fixedSchedule) return fixedSchedule;
   if (/宴会予約受付書/.test(text)) return extractOperationalFormFields(rawText, '宴会受注表');
@@ -3480,6 +3565,14 @@ function applyOcrResult(card) {
     weddingEls[documentField].checked = true;
   }
   const sizes = value('.ocr-sizes');
+  if (!editingId && productRows.length) {
+    const existingCards = [...els.itemsArea.querySelectorAll('.item-card')];
+    const defaultNames = new Set(['皿盛りデザート','アニバーサリーケーキ','アフタヌーンティー','引き菓子 / ギフト']);
+    if (existingCards.length === 1) {
+      const existingName = existingCards[0].querySelector('.item-name')?.value?.trim() || '';
+      if (!existingName || defaultNames.has(existingName)) els.itemsArea.innerHTML = '';
+    }
+  }
   productRows.forEach((row, index) => {
     const itemType = row.querySelector('.ocr-item-type')?.value || 'その他';
     const itemName = row.querySelector('.ocr-item-name')?.value.trim() || (index === 0 ? value('.ocr-cake-type') : '') || itemType;
