@@ -1,4 +1,159 @@
-<!DOCTYPE html>
+8月13日（木）18:00
+
+ケーキ
+
+* お客様：大塚 隆毅 様
+* 会場：ルーム入れ（341？）
+* サイズ：4号／12cm
+* 種類：ショート
+* ろうそく：有（おまかせ）
+* 箱：無
+* 金額：3,630円
+* メッセージ：Happy Birthday! Ryusei & Yuta
+* アレルギー：有
+    * 卵アレルギーの記載あり（詳細要確認）
+* 支払：部屋掛け
+* Room No.：180
+* 人数：8名で召し上がり
+* 備考：デザートのタイミングで提供する旨の記載あり
+* その他備考：一部判読困難
+
+⸻
+
+8月14日（金）16:00〜
+
+試食・打合せ
+
+* お客様：タニグチ タクヤ 様
+* 人数：大人2名
+* 会場：Bサロン
+* 内容：スイーツ試食
+* 特記：下見・打合せ（おまかせ品）×2
+* アレルギー：無
+* 事前アシェットメッセージ：無
+* スケジュール：17:00頃 提供
+* 宿泊：無
+
+⸻
+
+8月15日（土）14:00〜
+
+アフタヌーンティー
+
+* お客様：熊谷 優雅 様
+* 人数：大人2名／合計2名
+* 会場：ロビー
+* 数量：アフタヌーンティー ×2
+* アレルギー：有
+    * 「2P：バナナNG」と読めるため要確認
+* 支払：クレジット
+* Room No.：外来
+
+⸻
+
+8月16日（日）14:00〜
+
+アフタヌーンティー
+
+* お客様：ヒロタ 様
+* 人数：大人2名／合計2名
+* 会場：ロビー
+* 数量：アフタヌーンティー ×2
+* アレルギー：無
+* 支払：現金
+* Room No.：外来
+
+⸻
+
+8月17日（月）15:00頃
+
+ウェルカムフルーツ
+
+* お客様：山越 様
+* 人数：大人4名＋子供1名／合計5名
+* 会場：ルームサービス
+* 数量：ウェルカムフルーツ ×2
+* 金額：5,500円（税込）
+* アレルギー：無
+* 支払：部屋掛け
+* Room No.：171、172
+* 備考：
+    * 東日本 山岡会長からのご予約
+    * 東日本へ請求
+    * 部屋入れセットの用意をお願いします
+
+⸻
+
+8月24日（月）12:00〜
+
+アフタヌーンティー
+
+* お客様：せきだ くみこ 様
+* 人数：大人2名／合計2名
+* 会場：ロビー
+* 数量：アフタヌーンティー ×2
+* アレルギー：無
+* 支払：現金
+* Room No.：外来
+
+⸻
+
+8月24日（月）時間記載なし
+
+アフタヌーンティー
+
+* お客様：わたなべ みちよ 様
+* 人数：大人3名／合計3名
+* 会場：ロビー
+* 数量：アフタヌーンティー ×3
+* アレルギー：無
+* 支払：記載判別困難
+* Room No.：外来
+
+⸻
+
+8月29日（土）15:00頃
+
+ウェルカムフルーツ
+
+* お客様：マキタ ヨウイチ 様
+* 連絡先：記載あり
+* 人数：大人2名／合計2名
+* 会場：ルームサービス
+* 数量：ウェルカムフルーツ ×1
+* 金額：5,500円（税込）
+* アレルギー：無
+* 支払：部屋掛け
+* Room No.：272
+* 備考：
+    * ご本人様からの予約
+    * 東日本へ請求（招待券利用）
+    * 部屋入れセットの用意をお願いします
+
+⸻
+
+8月30日（日）12:00〜
+
+ケーキ
+
+* お客様：タカイ マリコ 様
+* 会場：桂姫
+* サイズ：4号／12cm
+* 種類：ショート
+* 金額：3,630円
+* ろうそく：有（おまかせ）
+* 箱：無
+* メッセージ：「美子ママ Happy Birthday」
+* アレルギー：無
+* 支払：現金
+* Room No.：外来
+* 備考：
+    * 4名で召し上がります
+    * ランチ利用のお客様
+
+⸻
+
+8月31日（月）18:00〜<!DOCTYPE html>
 <html lang="ja">
 
 <head>
@@ -3523,7 +3678,7 @@ function renderOcrResult(result, fileName, index) {
           <div class="item-title">${escapeHtml(fileName)}</div>
           <div class="meta">自動判別：${escapeHtml(result.documentType)}</div>
         </div>
-        <span class="badge">要確認</span>
+        <label class="check-pill"><input type="checkbox" class="ocr-result-selected" checked> 登録対象</label>
       </div>
       <div class="grid-3">
         <div class="field"><label class="label">反映先カテゴリ</label><select class="select ocr-category">
@@ -3815,7 +3970,7 @@ function analyzePastedText() {
   const jsonResults = parseImportJson(text);
   if (jsonResults) {
     ocrEls.pasteArea.classList.add('hidden');
-    ocrEls.results.innerHTML = `<div class="ocr-confidence-note"><strong>共通取込JSONを${jsonResults.length}件読み込みました。</strong><br>エラー・確認事項を直してからフォームへ反映してください。</div>${jsonResults.map((result, index) => renderOcrResult(result, `取込JSON ${index + 1}`, index)).join('')}`;
+    ocrEls.results.innerHTML = `<div class="ocr-confidence-note"><strong>共通取込JSONを${jsonResults.length}件読み込みました。</strong><br>エラー・確認事項を直してから登録してください。</div>${jsonResults.map((result, index) => renderOcrResult(result, `取込JSON ${index + 1}`, index)).join('')}${jsonResults.length > 1 ? '<button type="button" class="btn-dark apply-selected-ocr-results" style="width:100%;margin-top:14px;">選択した予約を一括登録</button>' : ''}`;
     return;
   }
   const memoStartPattern = /^(?:(?:20\d{2})\s*年\s*)?\d{1,2}\s*月\s*\d{1,2}\s*日(?:\s*[（(][日月火水木金土][）)])?(?:\s*\d{1,2}\s*:\s*\d{2}(?:\s*(?:頃|ごろ|〜|~))?)?\s*$/;
@@ -3846,7 +4001,7 @@ function analyzePastedText() {
   ocrEls.pasteArea.classList.add('hidden');
   ocrEls.results.innerHTML = `${results.length > 1
     ? `<div class="ocr-confidence-note"><strong>${results.length}件のメモを検出して、個別の確認カードへ変換しました。</strong><br>日付・名前・人数・商品・アレルギーをそれぞれ確認できます。</div>`
-    : ''}${results.map((result, index) => renderOcrResult(result, results.length > 1 ? `貼り付けメモ ${index + 1}` : '貼り付けた帳票', index)).join('')}`;
+    : ''}${results.map((result, index) => renderOcrResult(result, results.length > 1 ? `貼り付けメモ ${index + 1}` : '貼り付けた帳票', index)).join('')}${results.length > 1 ? '<button type="button" class="btn-dark apply-selected-ocr-results" style="width:100%;margin-top:14px;">選択した予約を一括登録</button>' : ''}`;
 }
 
 function parseOcrAllergyPeople(text = '') {
@@ -3964,6 +4119,91 @@ function applyOcrResult(card) {
   ocrEls.modal.classList.add('hidden');
   viewToggle.querySelector('[data-view="form"]').click();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function registerSelectedOcrResults() {
+  const cards = [...ocrEls.results.querySelectorAll('.ocr-result-card:not(.ocr-bulk-card)')]
+    .filter(card => card.querySelector('.ocr-result-selected')?.checked);
+  if (!cards.length) return window.alert('登録する予約にチェックを入れてください。');
+
+  const read = (card, selector) => card.querySelector(selector)?.value?.trim() || '';
+  const candidates = cards.map(card => {
+    const category = categories.includes(read(card, '.ocr-category')) ? read(card, '.ocr-category') : '宴会';
+    const documentType = read(card, '.ocr-type') || '判別できず';
+    const date = read(card, '.ocr-date');
+    const time = read(card, '.ocr-reception-time') || read(card, '.ocr-time') || read(card, '.ocr-ceremony-time');
+    const clientName = read(card, '.ocr-name');
+    const venue = read(card, '.ocr-venue');
+    const sizes = read(card, '.ocr-sizes');
+    const message = read(card, '.ocr-message');
+    const extraInfo = read(card, '.ocr-extra-info');
+    const rawText = read(card, '.ocr-text');
+    const items = [...card.querySelectorAll('.ocr-product-row')].map((row, index) => ({
+      type: row.querySelector('.ocr-item-type')?.value || 'その他',
+      reportType: '',
+      name: row.querySelector('.ocr-item-name')?.value.trim() || '内容要確認',
+      quantity: Number(row.querySelector('.ocr-item-quantity')?.value || 1),
+      cost: 0, size: '', squareSize: '', multiSize: index === 0 ? sizes : '',
+      plateMessage: index === 0 ? message : '', dessertCostNote: '', options: [],
+      notes: extraInfo
+    }));
+    const allergyPeople = parseOcrAllergyPeople(read(card, '.ocr-allergy-people'));
+    const structuredNotes = [
+      read(card, '.ocr-ceremony-time') ? `挙式 ${read(card, '.ocr-ceremony-time')}` : '',
+      read(card, '.ocr-reception-time') ? `披露宴 ${read(card, '.ocr-reception-time')}` : '',
+      read(card, '.ocr-allergy') ? `アレルギー ${read(card, '.ocr-allergy')}` : '',
+      read(card, '.ocr-children') ? `お子様メニュー ${read(card, '.ocr-children')}` : '',
+      extraInfo,
+      `【${documentType} 読み取り原文】\n${rawText}`
+    ].filter(Boolean).join('\n\n');
+    return {
+      category, documentType, date, time, clientName, venue,
+      guestCount: Number(read(card, '.ocr-guests') || 0),
+      coursePrice: Number(read(card, '.ocr-course-price') || 0),
+      allergyPeople, items, orderNotes: structuredNotes
+    };
+  });
+
+  const invalid = candidates.filter(candidate => !candidate.date || !candidate.clientName);
+  if (invalid.length) {
+    window.alert(`日付またはお客様名が空欄の予約が${invalid.length}件あります。入力するか「登録対象」のチェックを外してください。`);
+    return;
+  }
+  if (!window.confirm(`${candidates.length}件の予約を一括登録しますか？`)) return;
+
+  const orders = loadOrders();
+  const duplicateKey = order => [order.category || '', order.date || '', order.time || '', String(order.clientName || '').replace(/\s+/g, '')].join('::');
+  const existingKeys = new Set(orders.map(duplicateKey));
+  let added = 0;
+  let duplicates = 0;
+  candidates.forEach(candidate => {
+    const key = duplicateKey(candidate);
+    if (existingKeys.has(key)) { duplicates += 1; return; }
+    const createdAt = Date.now() + added;
+    orders.push({
+      id: `${createdAt}-${Math.floor(Math.random() * 1000)}`, createdAt,
+      category: candidate.category, date: candidate.date, time: candidate.time,
+      clientName: candidate.clientName, venue: candidate.venue,
+      guestCount: candidate.guestCount, coursePrice: candidate.coursePrice,
+      status: '未確認', afternoonTeaType: candidate.category === 'アフタヌーンティー' ? '通常' : '',
+      orderNotes: candidate.orderNotes,
+      weddingDocuments: candidate.category === '婚礼' ? {
+        tenDaysDate: dateOffsetStr(candidate.date, -10), constructionChecked: false,
+        tenDaysChecked: candidate.documentType === '10日前資料',
+        menuChecked: candidate.documentType === 'メニュー表',
+        cakeSlipChecked: candidate.documentType === 'ケーキ食伝', notes: candidate.orderNotes
+      } : null,
+      allergyMaster: { people: candidate.allergyPeople }, items: candidate.items
+    });
+    existingKeys.add(key);
+    added += 1;
+  });
+  saveOrders(orders);
+  rebuildVenueMemoryFromOrders(orders);
+  renderOrders();
+  ocrEls.modal.classList.add('hidden');
+  viewToggle.querySelector('[data-view="list"]').click();
+  window.alert(`${added}件を登録しました。${duplicates ? `\n重複${duplicates}件は登録していません。` : ''}`);
 }
 
 function applyWeddingScheduleBulk(card) {
@@ -5612,6 +5852,11 @@ if (!isWeddingOrAnniversaryCake) {
         applyWeddingScheduleBulk(bulkButton.closest('.ocr-bulk-card'));
         return;
       }
+      const selectedResultsButton = event.target.closest('.apply-selected-ocr-results');
+      if (selectedResultsButton) {
+        registerSelectedOcrResults();
+        return;
+      }
       const button = event.target.closest('.apply-ocr-result');
       if (!button) return;
       applyOcrResult(button.closest('.ocr-result-card'));
@@ -5673,3 +5918,20 @@ document.getElementById('todaySummary').addEventListener('click', () => {
 </body>
 
 </html>
+
+
+ハピネスプラン・ケーキ
+
+* お客様：諫山 靖生 様
+* 人数：大人2名／合計2名
+* 会場：桂姫
+* ケーキ：3号／9cm
+* 種類：ショート
+* ろうそく：有（おまかせ）
+* 特記：ハピネスPL（B-PL）×2
+* 特典ワンドリンクサービス
+* メッセージ：Happy Wedding Anniversary
+* アレルギー：無
+* 支払：部屋掛け（プラン内）
+* Room No.：272
+* 提供：デザート時
