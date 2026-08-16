@@ -2628,7 +2628,9 @@ function extractAnniversarySlipFields(rawText) {
     ? cakeTypeCandidate
     : 'アニバーサリーケーキ';
   const nameCandidate = valueAfterLabel(lines, ['お客様名', 'お客様', 'お客樣', '予約名', '氏名']);
-  const clientName = /連絡先|日時|人数|会場|金額/.test(nameCandidate) ? '' : nameCandidate;
+  const clientName = /連絡先|日時|人数|会場|金額/.test(nameCandidate)
+    ? ''
+    : nameCandidate.replace(/\s*様(?:\s|$).*$/, '').trim();
   const venueCandidate = valueAfterLabel(lines, ['会場', '受け渡し場所']);
   const venue = /金額|ケーキサイズ|ろうそく|種類/.test(venueCandidate) ? '' : venueCandidate;
   const room = valueAfterLabel(lines, ['Room No.', 'Room No', '部屋番号']);
@@ -2639,6 +2641,8 @@ function extractAnniversarySlipFields(rawText) {
   const box = valueAfterLabel(lines, ['箱']);
   const amount = valueAfterLabel(lines, ['金額', '料金']);
   const payment = valueAfterLabel(lines, ['支払', '支払方法']);
+  const benefit = valueAfterLabel(lines, ['特典']);
+  const serviceTiming = valueAfterLabel(lines, ['提供']);
   return {
     documentType: 'ケーキ食伝', targetCategory: 'アニバーサリー',
     date: dateTime.date, time: dateTime.time,
@@ -2659,6 +2663,8 @@ function extractAnniversarySlipFields(rawText) {
       box ? `箱：${box}` : '',
       amount ? `金額：${amount}` : '',
       payment ? `支払：${payment}` : '',
+      benefit ? `特典：${benefit}` : '',
+      serviceTiming ? `提供：${serviceTiming}` : '',
       notes ? `備考：${notes}` : '',
       otherNotes ? `その他備考：${otherNotes}` : ''
     ].filter(Boolean).join('\n'),
@@ -2677,11 +2683,18 @@ function extractGiftSlipFields(rawText) {
   if (ceremonyDateMatch) {
     dateTime.date = `${ceremonyDateMatch[1]}-${String(ceremonyDateMatch[2]).padStart(2, '0')}-${String(ceremonyDateMatch[3]).padStart(2, '0')}`;
   }
-  const clientName = valueAfterLabel(lines, ['新郎新婦お名前', '新郎新婦名', '婚礼名']);
+  const groomName = valueAfterLabel(lines, ['新郎']).replace(/\s*様\s*$/, '').trim();
+  const brideName = valueAfterLabel(lines, ['新婦']).replace(/\s*様\s*$/, '').trim();
+  const combinedCoupleName = [groomName, brideName].filter(Boolean).join('・');
+  const clientName = combinedCoupleName || valueAfterLabel(lines, ['新郎新婦お名前', '新郎新婦名', '婚礼名']);
   const deliveryDateMatch = text.match(/納品日[\s\S]{0,35}?(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?/);
+  const shortDeliveryDateMatch = !deliveryDateMatch && text.match(/納品日\s*[:：]?\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?/);
+  const deliveryYear = Number((dateTime.date || els.orderDate.value || todayStr()).slice(0, 4));
   const deliveryDate = deliveryDateMatch
     ? `${deliveryDateMatch[1]}-${String(deliveryDateMatch[2]).padStart(2, '0')}-${String(deliveryDateMatch[3]).padStart(2, '0')}`
-    : '';
+    : shortDeliveryDateMatch
+      ? `${deliveryYear}-${String(shortDeliveryDateMatch[1]).padStart(2, '0')}-${String(shortDeliveryDateMatch[2]).padStart(2, '0')}`
+      : '';
   if (!ceremonyDateMatch && allDates.length) {
     const ceremonyCandidates = allDates.filter(date => date !== deliveryDate);
     dateTime.date = ceremonyCandidates.at(-1) || allDates.at(-1);
@@ -2695,7 +2708,7 @@ function extractGiftSlipFields(rawText) {
   const firstProductNumbers = productLines.length
     ? [...productLines[0].matchAll(/\d{1,3}(?:,\d{3})*/g)].map(match => Number(match[0].replace(/,/g, '')))
     : [];
-  const parsedItems = productLines.map(line => {
+  let parsedItems = productLines.map(line => {
     const numbers = [...line.matchAll(/\d{1,3}(?:,\d{3})*/g)].map(match => Number(match[0].replace(/,/g, '')));
     const hasPriceAndQuantity = numbers.length >= 2;
     return {
@@ -2704,6 +2717,23 @@ function extractGiftSlipFields(rawText) {
       quantity: hasPriceAndQuantity ? numbers.at(-1) : 0
     };
   });
+  const productHeaderIndexes = lines.reduce((indexes, line, index) => {
+    if (/^[*＊・\s]*商品\s*\d+\s*[:：]?/.test(line)) indexes.push(index);
+    return indexes;
+  }, []);
+  const detailedProductNotes = [];
+  if (productHeaderIndexes.length) {
+    parsedItems = productHeaderIndexes.map((start, index) => {
+      const end = productHeaderIndexes[index + 1] ?? lines.findIndex((line, lineIndex) => lineIndex > start && /^[*＊・\s]*(?:合計数量|納品日|納品場所|連絡事項)/.test(line));
+      const block = lines.slice(start, end < 0 ? lines.length : end);
+      const inlineName = block[0].replace(/^[*＊・\s]*商品\s*\d+\s*[:：]?\s*/, '').trim();
+      const nameLine = inlineName || block.slice(1).find(line => !/^[*＊・\s]*(?:単価|数量)/.test(line))?.replace(/^[*＊・\s]+/, '') || '引き菓子';
+      const quantityLine = block.find(line => /^[*＊・\s]*数量\s*[:：]?/.test(line)) || '';
+      const quantity = Number(quantityLine.match(/(\d{1,4})/)?.[1] || 0);
+      detailedProductNotes.push(block.join('\n'));
+      return { type: 'ギフト', name: nameLine, quantity };
+    });
+  }
   const contactNotes = valueAfterLabel(lines, ['連絡事項', '備考']);
   return {
     documentType: '引き菓子食伝', targetCategory: '婚礼',
@@ -2715,7 +2745,7 @@ function extractGiftSlipFields(rawText) {
     itemQuantity: firstProductNumbers.at(-1) || 0,
     items: parsedItems.length ? parsedItems : [{ type: 'ギフト', name: '引き菓子', quantity: 0 }],
     deliveryDate, deliveryVenue,
-    extraInfo: [productLines.length ? `商品候補\n${productLines.join('\n')}` : '', contactNotes].filter(Boolean).join('\n\n'),
+    extraInfo: [detailedProductNotes.length ? `【商品明細】\n${detailedProductNotes.join('\n\n')}` : (productLines.length ? `商品候補\n${productLines.join('\n')}` : ''), contactNotes].filter(Boolean).join('\n\n'),
     corrections: [], text
   };
 }
@@ -3219,19 +3249,24 @@ function extractAfternoonTeaMemoFields(rawText) {
   const adultGuestMatch = guestValue.match(/大人\s*(\d{1,3})\s*名?/);
   const anyGuestMatch = guestValue.match(/(\d{1,3})\s*名?/);
   const guestCount = Number(totalGuestMatch?.[1] || adultGuestMatch?.[1] || anyGuestMatch?.[1] || 0);
-  const quantityValue = valueFor(['数量']);
+  const childCountMatch = guestValue.match(/子供\s*(\d{1,3})\s*名?/);
+  const childAgesMatch = guestValue.match(/子供\s*\d{1,3}\s*名?\s*[（(]([^）)]+)[）)]/);
+  const quantityValue = valueFor(['数量', '内容']);
   const quantityMatch = quantityValue.match(/[×xX✕]\s*(\d+)\s*(?:個|名|台|セット)?/);
   const itemQuantity = Number(quantityMatch?.[1] || guestCount || 1);
   const itemName = quantityValue.replace(/[×xX✕]\s*\d+\s*(?:個|名|台|セット)?\s*$/, '').trim() || 'アフタヌーンティー';
   const allergyValue = valueFor(['アレルギー']);
   const allergyIndex = lines.findIndex(line => /アレルギー/.test(line));
   const allergyDetailLines = allergyIndex >= 0
-    ? lines.slice(allergyIndex + 1, allergyIndex + 5).filter(line => !/^(?:支払|支払方法|Room\s*No\.?|部屋番号)/i.test(line))
+    ? lines.slice(allergyIndex + 1, allergyIndex + 5).filter(line =>
+      !/^[*＊・\s]*(?:支払|支払方法|Room\s*No\.?|部屋番号|備考|特記)\s*:/i.test(line))
     : [];
   const allergyDetailText = allergyDetailLines.join(' ');
   const ngMatch = allergyDetailText.match(/(?:(\d+)\s*P\s*[:：]\s*)?(?:[「『]\s*)?([^「」『』:：\s]+?)\s*NG/i);
-  const allergyFood = ngMatch?.[2] || '';
-  const allergyCount = Number(ngMatch?.[1] || (allergyFood ? guestCount || 1 : 0));
+  const namedNgMatch = allergyDetailText.match(/(?:^|[:：\s])([^:：\s「」『』]+?)\s*NG/i);
+  const allergyFood = (ngMatch?.[2] || namedNgMatch?.[1] || '').replace(/^(?:お子様|子供|大人)[：:]?/, '');
+  const namedSinglePerson = /\d+\s*歳(?:の)?お子様/.test(allergyDetailText);
+  const allergyCount = Number(ngMatch?.[1] || (allergyFood ? (namedSinglePerson ? 1 : guestCount || 1) : 0));
   const noAllergy = /^(?:無|なし|無し|ありません)$/.test(allergyValue);
   const allergy = noAllergy ? '無' : (allergyFood ? `${allergyFood}NG × ${allergyCount}名（要確認）` : allergyValue);
   const allergyPeople = allergyFood ? [{
@@ -3241,14 +3276,24 @@ function extractAfternoonTeaMemoFields(rawText) {
   }] : [];
   const payment = valueFor(['支払', '支払方法']);
   const room = valueFor(['Room No.', 'Room No', 'RoomNo.', '部屋番号']);
+  const notesIndex = lines.findIndex(line => /^[*＊・\s]*(?:備考|特記)\s*:/.test(line));
+  const memoNotes = notesIndex >= 0
+    ? lines.slice(notesIndex).map((line, index) => index === 0
+      ? line.replace(/^[*＊・\s]*(?:備考|特記)\s*:\s*/, '')
+      : line.replace(/^[*＊・\s]+/, '')).filter(Boolean)
+    : [];
   const extraInfo = [
     '【アフタヌーンティー】', payment ? `支払：${payment}` : '', room ? `Room No.：${room}` : '',
-    allergyDetailText ? `アレルギー原文：${allergyDetailText}` : ''
+    childCountMatch ? `お子様：${childCountMatch[1]}名${childAgesMatch ? `（${childAgesMatch[1]}）` : ''}` : '',
+    allergyDetailText ? `アレルギー原文：${allergyDetailText}` : '',
+    memoNotes.length ? `【備考・特記】\n${memoNotes.map(note => `・${note}`).join('\n')}` : ''
   ].filter(Boolean).join('\n');
   return {
     documentType: 'アフタヌーンティーメモ', targetCategory: 'アフタヌーンティー',
     date, time, ceremonyTime: '', receptionTime: '', clientName, venue, guestCount, coursePrice: 0,
-    sizes: [], allergy, allergyPeople, children: [], cakeType: '', cakeCutting: false, firstBite: false,
+    sizes: [], allergy, allergyPeople,
+    children: childCountMatch ? [`子供${childCountMatch[1]}名${childAgesMatch ? `（${childAgesMatch[1]}）` : ''}`] : [],
+    cakeType: '', cakeCutting: false, firstBite: false,
     itemType: 'アフタヌーンティー', itemName, itemQuantity,
     items: [{ type: 'アフタヌーンティー', name: itemName, quantity: itemQuantity }],
     message: '', extraInfo, corrections: allergyFood ? ['アレルギー内容は原本と照合してください。'] : [], text
@@ -3325,6 +3370,10 @@ function extractPastedDocument(rawText) {
       (/(?:^|\n)[*＊・\s]*お客様\s*:/.test(text) || /数量\s*:/.test(text))) {
     return extractAfternoonTeaMemoFields(rawText);
   }
+  if (/(?:婚礼[・･\s]*)?(?:引菓子|引き菓子)/.test(text) &&
+      (/商品\s*\d+\s*:/.test(text) || /納品日\s*:/.test(text) || /納品場所\s*:/.test(text))) {
+    return extractGiftSlipFields(rawText);
+  }
   if (/試食[・･\s]*打合せ/.test(text) ||
       (/(?:^|\n)[*＊・\s]*お客様\s*:/.test(text) && /スイーツ試食/.test(text))) {
     return extractTastingMeetingMemoFields(rawText);
@@ -3347,7 +3396,7 @@ function extractPastedDocument(rawText) {
   if (/ハピネスプラン|特典発注依頼書|ケーキサイズ|ろうそく|ホールケーキメッセージ/.test(text)) {
     return extractAnniversarySlipFields(rawText);
   }
-  if (/注文書/.test(text) && /納品日|納品場所|引き菓子|ジャム|アローム/.test(text)) {
+  if ((/注文書/.test(text) || /引菓子|引き菓子/.test(text)) && /納品日|納品場所|引き菓子|引菓子|ジャム|アローム/.test(text)) {
     return extractGiftSlipFields(rawText);
   }
   return { ...extractMenuPasteFields(rawText), targetCategory: '婚礼' };
@@ -3857,7 +3906,7 @@ function analyzePastedText() {
     ocrEls.results.innerHTML = `<div class="ocr-confidence-note"><strong>共通取込JSONを${jsonResults.length}件読み込みました。</strong><br>エラー・確認事項を直してから登録してください。</div>${jsonResults.map((result, index) => renderOcrResult(result, `取込JSON ${index + 1}`, index)).join('')}${jsonResults.length > 1 ? '<button type="button" class="btn-dark apply-selected-ocr-results" style="width:100%;margin-top:14px;">選択した予約を一括登録</button>' : ''}`;
     return;
   }
-  const memoStartPattern = /^(?:(?:20\d{2})\s*年\s*)?\d{1,2}\s*月\s*\d{1,2}\s*日(?:\s*[（(][日月火水木金土][）)])?(?:\s*\d{1,2}\s*:\s*\d{2}(?:\s*(?:頃|ごろ|〜|~))?)?\s*$/;
+  const memoStartPattern = /^[*#・\s]*(?:(?:20\d{2})\s*年\s*)?\d{1,2}\s*月\s*\d{1,2}\s*日(?:\s*[（(][日月火水木金土][）)])?(?:\s*\d{1,2}\s*:\s*\d{2}(?:\s*(?:頃|ごろ|〜|~))?)?/;
   const lines = text.split(/\r?\n/);
   const startIndexes = lines.reduce((indexes, line, index) => {
     if (memoStartPattern.test(normalizeOcrText(line))) indexes.push(index);
