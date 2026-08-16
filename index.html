@@ -3300,6 +3300,162 @@ function extractAfternoonTeaMemoFields(rawText) {
   };
 }
 
+function extractStructuredWeddingMemoFields(rawText) {
+  const text = normalizeOcrText(rawText);
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  const valueFor = labels => valueAfterLabel(lines, labels);
+  const dateTime = commonPastedDateTime(text);
+  const headingLine = lines.find(line => /月\s*\d{1,2}\s*日/.test(line)) || '';
+  const headingTime = headingLine.match(/([01]?\d|2[0-3])\s*:\s*([0-5]\d)/);
+  const ceremonyTime = headingTime
+    ? `${String(headingTime[1]).padStart(2, '0')}:${headingTime[2]}`
+    : dateTime.time;
+  const receptionRaw = valueFor(['披露宴']);
+  const receptionMatch = receptionRaw.match(/([01]?\d|2[0-3])\s*:\s*([0-5]\d)/);
+  const receptionTime = receptionMatch
+    ? `${String(receptionMatch[1]).padStart(2, '0')}:${receptionMatch[2]}`
+    : '';
+  const clientName = valueFor(['お客様', '両家名', '宴席名'])
+    .replace(/\s*様\s*$/, '')
+    .replace(/[／/]+/g, '・')
+    .trim();
+  // 婚礼一覧やメモでは「披露宴：12:30～14:30 三笠」のように、
+  // 会場が披露宴時間の右側へ続くことがある。明示された「会場」を優先し、
+  // 空欄のときだけ時間表記の後ろを会場候補として採用する。
+  const inlineVenueFromTime = value => String(value || '')
+    .replace(/^(?:[01]?\d|2[0-3])\s*[:時]\s*[0-5]\d(?:\s*[~～〜－—-]\s*(?:(?:[01]?\d|2[0-3])\s*[:時]\s*[0-5]\d)?)?\s*/, '')
+    .replace(/^[\s/／:：・,，]+/, '')
+    .trim();
+  const explicitVenue = valueFor(['会場']);
+  const receptionInlineVenue = inlineVenueFromTime(receptionRaw);
+  const headingInlineVenue = inlineVenueFromTime(
+    headingLine.replace(/^.*?日(?:\s*[（(][^）)]*[）)])?\s*/, '')
+  );
+  const venue = explicitVenue || receptionInlineVenue || headingInlineVenue;
+  const countFor = label => {
+    const line = lines.find(value => new RegExp(`^[*＊・\\s]*${label}\\s*:`).test(value));
+    return Number(line?.match(/(\d{1,3})\s*名?/)?.[1] || 0);
+  };
+  const adultCount = countFor('大人');
+  const elementaryCount = countFor('小学生');
+  const childCount = countFor('子供');
+  const infantCount = countFor('幼児');
+  const ageCounts = lines
+    .filter(line => /^[*＊・\s]*\d+\s*歳\s*:/.test(line))
+    .reduce((sum, line) => sum + Number(line.match(/:\s*(\d{1,3})\s*名?/)?.[1] || 0), 0);
+  const simplePeople = valueFor(['人数']).match(/(\d{1,3})\s*名?/);
+  const guestCount = adultCount + elementaryCount + childCount + infantCount + ageCounts || Number(simplePeople?.[1] || 0);
+  const children = [
+    elementaryCount ? `小学生${elementaryCount}名` : '',
+    childCount ? `子供${childCount}名` : '',
+    infantCount ? `幼児${infantCount}名` : '',
+    ...lines.filter(line => /^[*＊・\s]*\d+\s*歳\s*:/.test(line)).map(line => line.replace(/^[*＊・\s]+/, ''))
+  ].filter(Boolean);
+
+  const cakeLines = linesBetween(lines, /^ケーキ$/, /アレルギー|苦手食材|^料理$/);
+  const cakeType = cakeLines.find(line => /ショート|ケーキ|オリジナル|イミテーション|段/.test(line))
+    ?.replace(/^[*＊・\s]+/, '').trim() || 'ウエディングケーキ';
+  const cakeCutting = cakeLines.some(line => /ケーキカット\s*:\s*(?:有|あり)/.test(line));
+  const firstBite = cakeLines.some(line => /ファーストバイト\s*:\s*(?:有|あり)/.test(line));
+  const surpriseBite = cakeLines.some(line => /サプライズバイト\s*:\s*(?:有|あり)/.test(line));
+  const sizes = [...new Set(cakeLines.flatMap(line =>
+    [...line.matchAll(/(?:9\s*cm|[3-7]\s*号|尺|四角(?:\s*\d+\s*[×xX]\s*\d+)?)/g)]
+      .map(match => match[0].replace(/\s+/g, ''))
+  ))];
+
+  const allergyLines = linesBetween(lines, /アレルギー|苦手食材/, /^料理$/)
+    .map(line => line.replace(/^[*＊・\s]+/, '').trim())
+    .filter(Boolean);
+  const allergy = allergyLines.join(' / ');
+  const primaryChoices = [
+    ['エビ', 'えび'], ['えび', 'えび'], ['カニ', 'かに'], ['かに', 'かに'],
+    ['甲殻類', 'その他'], ['イクラ', 'その他'], ['生魚', 'その他'], ['アルコール', 'その他']
+  ];
+  const allergyPeople = allergyLines.flatMap(line => {
+    if (/確認中|^(?:無|なし|無し)$/.test(line)) return [];
+    const foodMatches = primaryChoices.filter(([word]) => line.includes(word));
+    if (!foodMatches.length) return [];
+    const count = Number(line.match(/(\d{1,3})\s*名/)?.[1] || 1);
+    const primary = [...new Set(foodMatches.map(([, mapped]) => mapped))];
+    return [{ foods: foodMatches.map(([word]) => word).join('・'), count, primary, note: line }];
+  });
+
+  const menuStart = lines.findIndex(line => /^料理$/.test(line));
+  const menuLines = menuStart >= 0
+    ? lines.slice(menuStart + 1).map(line => line.replace(/^[*＊・\s]+/, '').trim()).filter(Boolean)
+    : [];
+  const dessertIndex = menuLines.findIndex(line => /^デザート$/.test(line));
+  const dessertLines = dessertIndex >= 0
+    ? menuLines.slice(dessertIndex + 1).filter(line => !/^(?:お口直し|メイン)$/.test(line))
+    : [];
+  const items = [{ type: 'ウエディングケーキ', name: cakeType, quantity: 1 }];
+  if (dessertLines.length) {
+    items.push({ type: '皿盛りデザート', name: dessertLines.join(' / '), quantity: guestCount || 1 });
+  }
+  const extraInfo = [
+    children.length ? `【人数内訳】\n大人${adultCount || 0}名\n${children.join('\n')}` : '',
+    surpriseBite ? 'サプライズバイト：有' : '',
+    allergyLines.length ? `【アレルギー・苦手食材】\n${allergyLines.join('\n')}` : '',
+    menuLines.length ? `【料理メニュー】\n${menuLines.join('\n')}` : ''
+  ].filter(Boolean).join('\n\n');
+  return {
+    documentType: '婚礼料理メモ', targetCategory: '婚礼',
+    date: dateTime.date, time: receptionTime || ceremonyTime,
+    ceremonyTime, receptionTime, clientName, venue, guestCount, coursePrice: 0,
+    sizes, allergy, allergyPeople, children, cakeType, cakeCutting, firstBite,
+    itemType: 'ウエディングケーキ', itemName: cakeType, itemQuantity: 1, items,
+    message: '', extraInfo,
+    corrections: /確認中|要確認/.test(allergy) ? ['アレルギー内容を原本で確認してください。'] : [], text
+  };
+}
+
+function extractGroupLunchMemoFields(rawText) {
+  const text = normalizeOcrText(rawText);
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  const valueFor = labels => valueAfterLabel(lines, labels);
+  const dateTime = commonPastedDateTime(text);
+  const headingLine = lines.find(line => /月\s*\d{1,2}\s*日/.test(line)) || '';
+  const headingTime = headingLine.match(/([01]?\d|2[0-3])\s*:\s*([0-5]\d)/);
+  const time = headingTime ? `${String(headingTime[1]).padStart(2, '0')}:${headingTime[2]}` : dateTime.time;
+  const groupLine = lines.find(line => /^[*＊・\s]*団体(?:名)?\s*:/.test(line)) || '';
+  const clientName = groupLine
+    .replace(/^[*＊・\s]*団体(?:名)?\s*:\s*/, '')
+    .replace(/\s*様\s*$/, '')
+    .trim();
+  const venues = lines
+    .filter(line => /^[*＊・\s]*会場\s*:/.test(line))
+    .map(line => line.replace(/^[*＊・\s]*会場\s*:\s*/, '').trim())
+    .filter(Boolean);
+  const venue = venues[0] || '';
+  const guestCount = Number(valueFor(['人数']).match(/(\d{1,4})/)?.[1] || 0);
+  const priceSource = valueFor(['料理', '税込単価']);
+  const coursePrice = Number(priceSource.match(/[\d,]{3,}/)?.[0]?.replace(/,/g, '') || 0);
+  const manager = valueFor(['幹事', '幹事・担当者', '担当者']);
+  const payment = valueFor(['支払', '支払方法']);
+  const total = valueFor(['合計', '合計予定金額']);
+  const noteStart = lines.findIndex(line => /^[*＊・\s]*備考\s*:/.test(line));
+  const notes = noteStart >= 0
+    ? lines.slice(noteStart + 1).map(line => line.replace(/^[*＊・\s]+/, '').trim()).filter(Boolean)
+    : [];
+  const extraInfo = [
+    manager ? `幹事・担当者：${manager}` : '',
+    payment ? `支払：${payment}` : '',
+    total ? `合計：${total}` : '',
+    venues.length > 1 ? `会場記載：${venues.join(' / ')}` : '',
+    `【受注内容】\n${lines.slice(2, noteStart >= 0 ? noteStart : lines.length).join('\n')}`,
+    notes.length ? `【備考】\n${notes.join('\n')}` : ''
+  ].filter(Boolean).join('\n\n');
+  return {
+    documentType: '団体ランチメモ', targetCategory: '宴会',
+    date: dateTime.date, time, ceremonyTime: '', receptionTime: '', clientName, venue,
+    guestCount, coursePrice, sizes: [], allergy: '', allergyPeople: [], children: [],
+    cakeType: '', cakeCutting: false, firstBite: false,
+    itemType: 'その他', itemName: '団体ランチ', itemQuantity: guestCount || 1,
+    items: [{ type: 'その他', name: '団体ランチ', quantity: guestCount || 1 }],
+    message: '', extraInfo, corrections: venues.length > 1 ? ['会場が複数記載されています。確認してください。'] : [], text
+  };
+}
+
 function extractWelcomeFruitMemoFields(rawText) {
   const text = normalizeOcrText(rawText);
   const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
@@ -3358,6 +3514,14 @@ function extractWelcomeFruitMemoFields(rawText) {
 
 function extractPastedDocument(rawText) {
   const text = normalizeOcrText(rawText);
+  if (/婚礼\s*[・･]\s*(?:フレンチ|和風アレンジ)/.test(text) &&
+      /(?:^|\n)[*＊・\s]*お客様\s*:/.test(text)) {
+    return extractStructuredWeddingMemoFields(rawText);
+  }
+  if (/(?:^|\n)\s*団体ランチ\s*(?:\n|$)/.test(text) &&
+      /(?:^|\n)[*＊・\s]*団体\s*:/.test(text)) {
+    return extractGroupLunchMemoFields(rawText);
+  }
   if (/(?:^|\n)\s*ケーキ\s*(?:\n|$)/.test(text) &&
       /(?:^|\n)[*＊・\s]*(?:お客様|サイズ|種類|ろうそく|メッセージ|Room\s*No\.?)\s*[:：]/i.test(text)) {
     return extractAnniversarySlipFields(rawText);
@@ -3499,6 +3663,20 @@ function getOcrResultLayout(result) {
       showDelivery: false, showMessage: false, showCakeChecks: false, showSizes: false,
       showCoursePrice: true, extraLabel: '会議・料理・ドリンク・注意事項・備考'
     },
+    '団体ランチメモ': {
+      dateLabel: '利用日', timeLabel: '開始時間', nameLabel: '団体名', showTime: true,
+      showVenue: true, showGuests: true, showCeremony: false, showReception: false,
+      showAllergy: false, showChildren: false, showCake: false, showProducts: true,
+      showDelivery: false, showMessage: false, showCakeChecks: false, showSizes: false,
+      showCoursePrice: true, extraLabel: '幹事・料金・案内看板・備考'
+    },
+    '婚礼料理メモ': {
+      dateLabel: '婚礼日', timeLabel: '時間', nameLabel: '両家名', showTime: false,
+      showVenue: true, showGuests: true, showCeremony: true, showReception: true,
+      showAllergy: true, showChildren: true, showCake: true, showProducts: true,
+      showDelivery: false, showMessage: false, showCakeChecks: true, showSizes: true,
+      extraLabel: '人数内訳・アレルギー・料理メニュー'
+    },
     'Event order': {
       dateLabel: '利用日', timeLabel: '開始時間', nameLabel: '申込者・宴席名', showTime: true,
       showVenue: true, showGuests: true, showCeremony: false, showReception: false,
@@ -3606,7 +3784,7 @@ function renderOcrResult(result, fileName, index) {
           ${categories.map(category => `<option ${category === (result.targetCategory || '婚礼') ? 'selected' : ''}>${category}</option>`).join('')}
         </select></div>
         <div class="field"><label class="label">書類種類</label><select class="select ocr-type">
-          ${['施工日資料','10日前資料','メニュー表','ケーキ食伝','引き菓子食伝','婚礼一覧表','宴会受注表','宴会受注メモ','Event order','通常ケーキ発注書','食事予約受付表','試食・打合せメモ','アフタヌーンティーメモ','ウェルカムフルーツメモ','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
+          ${['施工日資料','10日前資料','メニュー表','婚礼料理メモ','ケーキ食伝','引き菓子食伝','婚礼一覧表','宴会受注表','宴会受注メモ','団体ランチメモ','Event order','通常ケーキ発注書','食事予約受付表','試食・打合せメモ','アフタヌーンティーメモ','ウェルカムフルーツメモ','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
         </select></div>
         <div class="field"><label class="label">${layout.dateLabel}</label><input class="input ocr-date" type="date" value="${escapeHtml(result.date)}"></div>
         <div class="field ${layout.showTime ? '' : 'hidden'}"><label class="label">${layout.timeLabel}</label><input class="input ocr-time" type="time" value="${escapeHtml(result.time)}"></div>
@@ -3917,7 +4095,9 @@ function analyzePastedText() {
     const preamble = lines.slice(0, startIndexes[0]).join('\n').trim();
     chunks = startIndexes.map((start, index) => {
       const end = startIndexes[index + 1] ?? lines.length;
-      const chunk = lines.slice(start, end).join('\n').trim();
+      const chunk = lines.slice(start, end)
+        .filter(line => !/^\s*(?:⸻|[-—―]{3,})\s*$/.test(line))
+        .join('\n').trim();
       return index === 0 && preamble ? `${preamble}\n${chunk}` : chunk;
     }).filter(Boolean);
   } else {
