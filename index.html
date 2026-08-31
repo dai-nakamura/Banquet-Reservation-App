@@ -3315,7 +3315,7 @@ function extractStructuredWeddingMemoFields(rawText) {
   const receptionTime = receptionMatch
     ? `${String(receptionMatch[1]).padStart(2, '0')}:${receptionMatch[2]}`
     : '';
-  const clientName = valueFor(['お客様', '両家名', '宴席名'])
+  const clientName = valueFor(['お客様', '新郎新婦', '両家名', '宴席名'])
     .replace(/\s*様\s*$/, '')
     .replace(/[／/]+/g, '・')
     .trim();
@@ -3333,7 +3333,7 @@ function extractStructuredWeddingMemoFields(rawText) {
   );
   const venue = explicitVenue || receptionInlineVenue || headingInlineVenue;
   const countFor = label => {
-    const line = lines.find(value => new RegExp(`^[*＊・\\s]*${label}\\s*:`).test(value));
+    const line = lines.find(value => new RegExp(`^[*＊・\\s]*${label}\\s*(?::)?\\s*\\d`).test(value));
     return Number(line?.match(/(\d{1,3})\s*名?/)?.[1] || 0);
   };
   const adultCount = countFor('大人');
@@ -3363,39 +3363,76 @@ function extractStructuredWeddingMemoFields(rawText) {
       .map(match => match[0].replace(/\s+/g, ''))
   ))];
 
-  const allergyLines = linesBetween(lines, /アレルギー|苦手食材/, /^料理$/)
+  const allergyLines = linesBetween(
+    lines,
+    /アレルギー|苦手食材|食事制限/,
+    /^(?:料理|デザート関連|デザート|備考|特記|ケーキ)$/
+  )
     .map(line => line.replace(/^[*＊・\s]+/, '').trim())
     .filter(Boolean);
   const allergy = allergyLines.join(' / ');
   const primaryChoices = [
     ['エビ', 'えび'], ['えび', 'えび'], ['カニ', 'かに'], ['かに', 'かに'],
-    ['甲殻類', 'その他'], ['イクラ', 'その他'], ['生魚', 'その他'], ['アルコール', 'その他']
+    ['甲殻類', 'その他'], ['イクラ', 'その他'], ['生魚', 'その他'], ['アルコール', 'その他'],
+    ['ウリ科', 'その他'], ['ズッキーニ', 'その他']
   ];
   const allergyPeople = allergyLines.flatMap(line => {
-    if (/確認中|^(?:無|なし|無し)$/.test(line)) return [];
+    if (/確認中|^(?:無|なし|無し)$/.test(line) || /^[※注]/.test(line)) return [];
     const foodMatches = primaryChoices.filter(([word]) => line.includes(word));
-    if (!foodMatches.length) return [];
+    const unspecifiedMinor = /未成年.*アレルギー/.test(line);
+    if (!foodMatches.length && !unspecifiedMinor) return [];
     const count = Number(line.match(/(\d{1,3})\s*名/)?.[1] || 1);
     const primary = [...new Set(foodMatches.map(([, mapped]) => mapped))];
-    return [{ foods: foodMatches.map(([word]) => word).join('・'), count, primary, note: line }];
+    return [{
+      foods: foodMatches.map(([word]) => word).join('・') || '未成年アレルギー（内容要確認）',
+      count,
+      primary: primary.length ? primary : ['その他'],
+      note: line
+    }];
   });
 
   const menuStart = lines.findIndex(line => /^料理$/.test(line));
+  const menuEnd = menuStart >= 0
+    ? lines.findIndex((line, index) => index > menuStart && /^(?:デザート関連|備考|特記)$/.test(line))
+    : -1;
   const menuLines = menuStart >= 0
-    ? lines.slice(menuStart + 1).map(line => line.replace(/^[*＊・\s]+/, '').trim()).filter(Boolean)
+    ? lines.slice(menuStart + 1, menuEnd >= 0 ? menuEnd : lines.length)
+      .map(line => line.replace(/^[*＊・\s]+/, '').trim()).filter(Boolean)
     : [];
   const dessertIndex = menuLines.findIndex(line => /^デザート$/.test(line));
   const dessertLines = dessertIndex >= 0
     ? menuLines.slice(dessertIndex + 1).filter(line => !/^(?:お口直し|メイン)$/.test(line))
     : [];
+  const additionalOptionLine = lines.find(line => /追加オプション\s*:/.test(line)) || '';
+  const additionalOptionMatch = additionalOptionLine.match(/([\d,]+)\s*円\s*[×xX✕]\s*(\d+)/);
   const items = [{ type: 'ウエディングケーキ', name: cakeType, quantity: 1 }];
+  if (additionalOptionMatch) {
+    items.push({
+      type: 'その他',
+      name: `追加オプション ${additionalOptionMatch[1]}円`,
+      quantity: Number(additionalOptionMatch[2])
+    });
+  }
   if (dessertLines.length) {
     items.push({ type: '皿盛りデザート', name: dessertLines.join(' / '), quantity: guestCount || 1 });
   }
+  const dessertRelatedLines = linesBetween(lines, /^デザート関連$/, /^(?:備考|特記)$/)
+    .map(line => line.replace(/^[*＊・\s]+/, '').trim()).filter(Boolean);
+  const remarksLines = linesBetween(lines, /^(?:備考|特記)$/, /$a/)
+    .map(line => line.replace(/^[*＊・\s]+/, '').trim()).filter(Boolean);
+  const cakePrice = cakeLines.find(line => /[\d,]+\s*円/.test(line))?.replace(/^[*＊・\s]+/, '').trim() || '';
+  const serveLine = cakeLines.find(line => /^\s*[*＊・]?\s*サーブ\s*:/.test(line))?.replace(/^[*＊・\s]+/, '').trim() || '';
+  const cakeGuestsLine = cakeLines.find(line => /\d+\s*名様?分/.test(line))?.replace(/^[*＊・\s]+/, '').trim() || '';
   const extraInfo = [
     children.length ? `【人数内訳】\n大人${adultCount || 0}名\n${children.join('\n')}` : '',
+    [cakePrice, serveLine, cakeGuestsLine, additionalOptionLine.replace(/^[*＊・\s]+/, '').trim()]
+      .filter(Boolean).length
+      ? `【ケーキ詳細】\n${[cakePrice, serveLine, cakeGuestsLine, additionalOptionLine.replace(/^[*＊・\s]+/, '').trim()].filter(Boolean).join('\n')}`
+      : '',
     surpriseBite ? 'サプライズバイト：有' : '',
     allergyLines.length ? `【アレルギー・苦手食材】\n${allergyLines.join('\n')}` : '',
+    dessertRelatedLines.length ? `【デザート関連】\n${dessertRelatedLines.join('\n')}` : '',
+    remarksLines.length ? `【備考】\n${remarksLines.join('\n')}` : '',
     menuLines.length ? `【料理メニュー】\n${menuLines.join('\n')}` : ''
   ].filter(Boolean).join('\n\n');
   return {
