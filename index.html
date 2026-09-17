@@ -3362,6 +3362,87 @@ function extractAfternoonTeaMemoFields(rawText) {
   };
 }
 
+function extractSimpleWeddingMemoFields(rawText) {
+  const text = normalizeOcrText(rawText);
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  const header = lines[0] || '';
+  if (!/(?:^|[【\s])\d{1,2}\s*[\/.月]\s*\d{1,2}(?:\s*日)?[^\n]*婚礼/.test(header) ||
+      !/(?:^|\n)\s*(?:名前|お客様|新郎新婦|両家名)\s*[:：]/.test(text)) return null;
+
+  const valueFor = labels => valueAfterLabel(lines, labels);
+  const dateTime = commonPastedDateTime(text);
+  const clientName = valueFor(['名前', 'お客様', '新郎新婦', '両家名', '宴席名'])
+    .replace(/\s*様/g, '')
+    .replace(/[／/]+/g, '・')
+    .trim();
+  const timeValue = valueFor(['時間']);
+  const ceremonyMatch = timeValue.match(/挙式\s*([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+  const receptionMatch = timeValue.match(/披露宴\s*([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+  const ceremonyTime = ceremonyMatch ? `${String(ceremonyMatch[1]).padStart(2, '0')}:${ceremonyMatch[2]}` : '';
+  const receptionTime = receptionMatch ? `${String(receptionMatch[1]).padStart(2, '0')}:${receptionMatch[2]}` : '';
+  const guestCount = Number(valueFor(['人数']).match(/(\d{1,3})\s*名?/)?.[1] || 0);
+  const itemLabel = valueFor(['商品']) || 'ウェディングケーキ';
+  const cakeKindRaw = valueFor(['ケーキ種類', '種類']);
+  const cakeKind = /^(?:生|生ケーキ)$/.test(cakeKindRaw) ? '生ケーキ' : (cakeKindRaw || '要確認');
+  const tierRaw = valueFor(['段数', 'ケーキ段数']);
+  const tierFromKind = cakeKindRaw.match(/([1-3一二三])\s*段/);
+  const tierMap = { '一': '1', '二': '2', '三': '3' };
+  const normalizeTier = value => {
+    const match = String(value || '').match(/([1-3一二三])\s*段/);
+    if (!match) return '';
+    return `${tierMap[match[1]] || match[1]}段`;
+  };
+  const cakeTier = normalizeTier(tierRaw) || normalizeTier(tierFromKind?.[0]) || '要確認';
+  const quantity = Math.max(1, Number(valueFor(['数量']).match(/\d{1,3}/)?.[0] || 1));
+  const moneyNumber = value => Number(String(value || '').match(/[\d,]{3,}/)?.[0]?.replace(/,/g, '') || 0);
+  const cakePriceText = valueFor(['ケーキ料金', 'ケーキ金額']);
+  const coursePriceText = valueFor(['コース料金', '料理料金', '料理単価']);
+  const cakePrice = moneyNumber(cakePriceText);
+  const coursePrice = moneyNumber(coursePriceText);
+  const allergy = valueFor(['アレルギー・苦手', 'アレルギー/苦手', 'アレルギー', '苦手']);
+  const venue = valueFor(['会場', '場所']);
+  const notesIndex = lines.findIndex(line => /^備考\s*[:：]/.test(line));
+  const notes = notesIndex >= 0
+    ? lines.slice(notesIndex).map((line, index) => index === 0
+      ? line.replace(/^備考\s*[:：]\s*/, '')
+      : line.replace(/^[*＊・\s]+/, '')).filter(Boolean).join('\n')
+    : '';
+  const cakePriceFromNotes = !cakePrice
+    ? Number(notes.match(/(?:ケーキ欄|ケーキ料金)[^\d\n]{0,20}[「『]?([\d,]{3,})/)?.[1]?.replace(/,/g, '') || 0)
+    : cakePrice;
+  const restrictions = allergy || (() => {
+    const hits = notes.split(/[。\n]/).filter(part => /アレルギ|NG|苦手|カット|よく焼き|コンタミ|エキス/.test(part));
+    return hits.join('／');
+  })();
+  const allergyPeople = restrictions && !/^(?:なし|無|記載なし)$/.test(restrictions)
+    ? extractAllergyPeopleFromLines(restrictions.split(/[／\n]/)) : [];
+  const itemName = [cakeKind, cakeTier !== '要確認' ? cakeTier : ''].filter(Boolean).join(' ');
+  const extraInfo = [
+    cakeTier === '要確認' ? '段数：要確認' : `段数：${cakeTier}`,
+    cakePriceFromNotes ? `ケーキ料金：${cakePriceFromNotes.toLocaleString()}円` : 'ケーキ料金：記載なし',
+    coursePrice ? `コース料金：${coursePrice.toLocaleString()}円` : 'コース料金：記載なし',
+    notes ? `【備考】\n${notes}` : ''
+  ].filter(Boolean).join('\n');
+  return {
+    simpleWedding: true, documentType: '婚礼予約メモ', targetCategory: '婚礼',
+    date: dateTime.date, time: receptionTime || ceremonyTime, ceremonyTime, receptionTime,
+    clientName, venue, guestCount, coursePrice, cakePrice: cakePriceFromNotes,
+    cakeTier, sizes: [], allergy: restrictions, allergyPeople, children: [],
+    cakeType: cakeKind, cakeCutting: false, firstBite: false,
+    itemType: 'ウエディングケーキ', itemName, itemQuantity: quantity,
+    items: [{ type: 'ウエディングケーキ', name: itemName, quantity }],
+    message: '', extraInfo,
+    corrections: [
+      !dateTime.date ? '婚礼日を確認してください。' : '',
+      !clientName ? '新郎新婦名・両家名を確認してください。' : '',
+      cakeTier === '要確認' ? 'ウェディングケーキの段数が記載されていません。' : '',
+      !coursePrice ? '料理のコース料金が記載されていません。' : '',
+      !cakePriceFromNotes ? 'ケーキ料金が記載されていません。' : '',
+      /要確認|判読困難/.test(text) ? '要確認の記載があります。原本と照合してください。' : ''
+    ].filter(Boolean), text
+  };
+}
+
 function extractStructuredWeddingMemoFields(rawText) {
   const text = normalizeOcrText(rawText);
   const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
@@ -3711,6 +3792,8 @@ function extractSimpleServiceMemoFields(rawText) {
 
 function extractPastedDocument(rawText) {
   const text = normalizeOcrText(rawText);
+  const simpleWedding = extractSimpleWeddingMemoFields(rawText);
+  if (simpleWedding) return simpleWedding;
   const simpleService = extractSimpleServiceMemoFields(rawText);
   if (simpleService) return simpleService;
   if (/婚礼\s*[・･]\s*(?:フレンチ|和風アレンジ)/.test(text) &&
@@ -4040,7 +4123,7 @@ function renderOcrResult(result, fileName, index) {
           ${categories.map(category => `<option ${category === (result.targetCategory || '婚礼') ? 'selected' : ''}>${category}</option>`).join('')}
         </select></div>
         <div class="field"><label class="label">書類種類</label><select class="select ocr-type">
-          ${['施工日資料','10日前資料','メニュー表','婚礼料理メモ','ケーキ食伝','引き菓子食伝','婚礼一覧表','宴会受注表','宴会受注メモ','団体ランチメモ','Event order','通常ケーキ発注書','食事予約受付表','試食・打合せメモ','アフタヌーンティーメモ','ウェルカムフルーツメモ','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
+          ${['施工日資料','10日前資料','メニュー表','婚礼予約メモ','婚礼料理メモ','ケーキ食伝','引き菓子食伝','婚礼一覧表','宴会受注表','宴会受注メモ','団体ランチメモ','Event order','通常ケーキ発注書','食事予約受付表','試食・打合せメモ','アフタヌーンティーメモ','ウェルカムフルーツメモ','判別できず'].map(type => `<option ${type === result.documentType ? 'selected' : ''}>${type}</option>`).join('')}
         </select></div>
         <div class="field"><label class="label">${layout.dateLabel}</label><input class="input ocr-date" type="date" value="${escapeHtml(result.date)}"></div>
         <div class="field ${layout.showTime ? '' : 'hidden'}"><label class="label">${layout.timeLabel}</label><input class="input ocr-time" type="time" value="${escapeHtml(result.time)}"></div>
@@ -4063,6 +4146,11 @@ function renderOcrResult(result, fileName, index) {
       <div class="grid-2">
         <div class="field ${layout.showChildren ? '' : 'hidden'}"><label class="label">お子様メニュー</label><input class="input ocr-children" value="${escapeHtml((result.children || []).join(' / '))}"></div>
         <div class="field ${layout.showCake ? '' : 'hidden'}"><label class="label">ケーキ</label><input class="input ocr-cake-type" value="${escapeHtml(result.cakeType || result.sizes.join(' + '))}"></div>
+      </div>
+      <div class="grid-3 ${result.targetCategory === '婚礼' ? '' : 'hidden'}">
+        <div class="field"><label class="label">ケーキ段数</label><input class="input ocr-cake-tier" value="${escapeHtml(result.cakeTier || '要確認')}" placeholder="1段／2段／要確認"></div>
+        <div class="field"><label class="label">ケーキ料金</label><input class="input ocr-cake-price" type="number" min="0" value="${result.cakePrice || ''}" placeholder="記載なし"></div>
+        <div class="field"><label class="label">コース料金</label><input class="input ocr-wedding-course-price" type="number" min="0" value="${result.coursePrice || ''}" placeholder="記載なし"></div>
       </div>
       <div class="field ${layout.showProducts ? '' : 'hidden'}">
         <div class="label">商品一覧</div>
@@ -4302,11 +4390,12 @@ function resultToImportRecord(result, sourceText = '') {
     guestCount: Number(result.guestCount || 0), coursePrice: Number(result.coursePrice || 0),
     items: Array.isArray(result.items) ? result.items : [],
     allergy: result.allergy || '', allergyPeople: result.allergyPeople || [],
-    children: result.children || [], cakeType: result.cakeType || '', sizes: result.sizes || [],
+    children: result.children || [], cakeType: result.cakeType || '', cakeTier: result.cakeTier || '',
+    cakePrice: Number(result.cakePrice || 0), sizes: result.sizes || [],
     message: result.message || '', extraInfo: result.extraInfo || '',
     deliveryDate: result.deliveryDate || '', deliveryVenue: result.deliveryVenue || '',
     cakeCutting: Boolean(result.cakeCutting), firstBite: Boolean(result.firstBite),
-    simpleService: Boolean(result.simpleService), timeBand: result.timeBand || '',
+    simpleService: Boolean(result.simpleService), simpleWedding: Boolean(result.simpleWedding), timeBand: result.timeBand || '',
     candle: result.candle || '', box: result.box || '', handoff: result.handoff || '',
     restrictions: result.restrictions || result.allergy || '',
     bulkOrders: result.bulkOrders || [], corrections: result.corrections || [],
@@ -4320,7 +4409,7 @@ function validateImportRecord(record) {
   if (record.documentType !== '婚礼一覧表' && !record.date) errors.push('日付が未入力です');
   if (record.documentType !== '婚礼一覧表' && !record.clientName) warnings.push('お客様名・予約名が未入力です');
   if (!record.time && !record.receptionTime && record.documentType !== '婚礼一覧表') warnings.push('開始時間が未入力です');
-  if (!record.venue && !['ケーキ食伝','通常ケーキ発注書'].includes(record.documentType)) warnings.push('会場が未入力です');
+  if (!record.venue && !['ケーキ食伝','通常ケーキ発注書','婚礼予約メモ'].includes(record.documentType)) warnings.push('会場が未入力です');
   if (!record.items.length && record.documentType !== '婚礼一覧表') warnings.push('商品が未入力です');
   if (/要確認|判読困難|[？?]/.test([record.allergy, record.extraInfo, record.rawText].join(' '))) warnings.push('要確認の記載があります');
   return { errors, warnings };
@@ -4334,11 +4423,12 @@ function importRecordToResult(record) {
     receptionTime: record.receptionTime || '', clientName: record.clientName || '', venue: record.venue || '',
     guestCount: Number(record.guestCount || 0), coursePrice: Number(record.coursePrice || 0),
     items: record.items || [], allergy: record.allergy || '', allergyPeople: record.allergyPeople || [],
-    children: record.children || [], cakeType: record.cakeType || '', sizes: record.sizes || [],
+    children: record.children || [], cakeType: record.cakeType || '', cakeTier: record.cakeTier || '',
+    cakePrice: Number(record.cakePrice || 0), sizes: record.sizes || [],
     message: record.message || '', extraInfo: record.extraInfo || '',
     deliveryDate: record.deliveryDate || '', deliveryVenue: record.deliveryVenue || '',
     cakeCutting: Boolean(record.cakeCutting), firstBite: Boolean(record.firstBite),
-    simpleService: Boolean(record.simpleService), timeBand: record.timeBand || '',
+    simpleService: Boolean(record.simpleService), simpleWedding: Boolean(record.simpleWedding), timeBand: record.timeBand || '',
     candle: record.candle || '', box: record.box || '', handoff: record.handoff || '',
     restrictions: record.restrictions || record.allergy || '',
     bulkOrders: record.bulkOrders || [],
@@ -4524,7 +4614,8 @@ function applyOcrResult(card) {
   if (value('.ocr-name')) els.clientName.value = value('.ocr-name');
   if (value('.ocr-venue')) els.venue.value = value('.ocr-venue');
   if (value('.ocr-guests')) els.guestCount.value = value('.ocr-guests');
-  if (value('.ocr-course-price')) els.coursePrice.value = value('.ocr-course-price');
+  const importedCoursePrice = value('.ocr-wedding-course-price') || value('.ocr-course-price');
+  if (importedCoursePrice) els.coursePrice.value = importedCoursePrice;
   updateWeddingTenDaysDate();
   const type = value('.ocr-type');
   const documentField = {
@@ -4556,7 +4647,12 @@ function applyOcrResult(card) {
     itemCard.querySelector('.item-quantity').value = row.querySelector('.ocr-item-quantity')?.value || 1;
     if (index === 0 && sizes) itemCard.querySelector('.multi-size').value = sizes;
     if (index === 0 && value('.ocr-message')) itemCard.querySelector('.plate-message').value = value('.ocr-message');
-    const extraInfo = value('.ocr-extra-info');
+    const weddingCakeDetails = index === 0 && selectedCategory === '婚礼' ? [
+      value('.ocr-cake-tier') ? `段数：${value('.ocr-cake-tier')}` : '',
+      value('.ocr-cake-price') ? `ケーキ料金：${Number(value('.ocr-cake-price')).toLocaleString()}円` : '',
+      importedCoursePrice ? `コース料金：${Number(importedCoursePrice).toLocaleString()}円` : ''
+    ].filter(Boolean).join('\n') : '';
+    const extraInfo = [weddingCakeDetails, value('.ocr-extra-info')].filter(Boolean).join('\n');
     if (extraInfo) itemCard.querySelector('.item-notes').value = extraInfo;
   });
   renumberItems();
@@ -4573,6 +4669,9 @@ function applyOcrResult(card) {
     value('.ocr-allergy') ? `アレルギー ${value('.ocr-allergy')}` : '',
     value('.ocr-children') ? `お子様メニュー ${value('.ocr-children')}` : '',
     value('.ocr-cake-type') ? `ケーキ ${value('.ocr-cake-type')}` : '',
+    value('.ocr-cake-tier') ? `ケーキ段数 ${value('.ocr-cake-tier')}` : '',
+    value('.ocr-cake-price') ? `ケーキ料金 ${Number(value('.ocr-cake-price')).toLocaleString()}円` : '',
+    importedCoursePrice ? `コース料金 ${Number(importedCoursePrice).toLocaleString()}円` : '',
     value('.ocr-candle') ? `ろうそく ${value('.ocr-candle')}` : '',
     value('.ocr-box') ? `箱 ${value('.ocr-box')}` : '',
     value('.ocr-delivery-date') ? `納品日 ${value('.ocr-delivery-date')}` : '',
@@ -4609,6 +4708,9 @@ function registerSelectedOcrResults() {
     const message = read(card, '.ocr-message');
     const extraInfo = read(card, '.ocr-extra-info');
     const rawText = read(card, '.ocr-text');
+    const cakeTier = read(card, '.ocr-cake-tier');
+    const cakePrice = Number(read(card, '.ocr-cake-price') || 0);
+    const weddingCoursePrice = Number(read(card, '.ocr-wedding-course-price') || read(card, '.ocr-course-price') || 0);
     const items = [...card.querySelectorAll('.ocr-product-row')].map((row, index) => ({
       type: row.querySelector('.ocr-item-type')?.value || 'その他',
       reportType: '',
@@ -4616,7 +4718,12 @@ function registerSelectedOcrResults() {
       quantity: Number(row.querySelector('.ocr-item-quantity')?.value || 1),
       cost: 0, size: '', squareSize: '', multiSize: index === 0 ? sizes : '',
       plateMessage: index === 0 ? message : '', dessertCostNote: '', options: [],
-      notes: extraInfo
+      notes: [
+        index === 0 && cakeTier ? `段数：${cakeTier}` : '',
+        index === 0 && cakePrice ? `ケーキ料金：${cakePrice.toLocaleString()}円` : '',
+        index === 0 && weddingCoursePrice ? `コース料金：${weddingCoursePrice.toLocaleString()}円` : '',
+        extraInfo
+      ].filter(Boolean).join('\n')
     }));
     const allergyPeople = parseOcrAllergyPeople(read(card, '.ocr-allergy-people'));
     const structuredNotes = [
@@ -4627,13 +4734,16 @@ function registerSelectedOcrResults() {
       read(card, '.ocr-children') ? `お子様メニュー ${read(card, '.ocr-children')}` : '',
       read(card, '.ocr-candle') ? `ろうそく ${read(card, '.ocr-candle')}` : '',
       read(card, '.ocr-box') ? `箱 ${read(card, '.ocr-box')}` : '',
+      cakeTier ? `ケーキ段数 ${cakeTier}` : '',
+      cakePrice ? `ケーキ料金 ${cakePrice.toLocaleString()}円` : '',
+      weddingCoursePrice ? `コース料金 ${weddingCoursePrice.toLocaleString()}円` : '',
       extraInfo,
       rawText ? `【${documentType}から取込】原文は登録前確認済み` : ''
     ].filter(Boolean).join('\n\n');
     return {
       category, documentType, date, time, clientName, venue,
       guestCount: Number(read(card, '.ocr-guests') || 0),
-      coursePrice: Number(read(card, '.ocr-course-price') || 0),
+      coursePrice: weddingCoursePrice,
       allergyPeople, items, orderNotes: structuredNotes
     };
   });
