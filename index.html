@@ -1644,6 +1644,8 @@ body.ocr-modal-open { overflow: hidden; }
 .calendar-quick-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
 .calendar-quick-row button { padding:8px 10px; font-size:12px; }
 .calendar-agenda { display:grid; gap:10px; }
+.calendar-week { display:contents; }
+.calendar-week-title { display:none; }
 .calendar-day {
   display:grid;
   grid-template-columns: 82px minmax(0,1fr);
@@ -1722,10 +1724,29 @@ body.ocr-modal-open { overflow: hidden; }
   body.calendar-print-mode .calendar-date { position:static; font-size:11pt; }
   body.calendar-print-mode .calendar-event { break-inside:avoid; }
   body.calendar-print-mode .calendar-event summary { padding:2mm 2.5mm; }
-  body.calendar-print-mode .calendar-event-body { display:block!important; padding:2mm 2.5mm; }
+  body.calendar-print-mode .calendar-event-body { display:none!important; }
   body.calendar-print-mode .calendar-event-title { font-size:10pt; }
   body.calendar-print-mode .calendar-event-preview,
   body.calendar-print-mode .calendar-detail-row { font-size:8pt; }
+  body.calendar-print-mode .calendar-week {
+    display:block;
+    break-after:page;
+    page-break-after:always;
+  }
+  body.calendar-print-mode .calendar-week:last-child {
+    break-after:auto;
+    page-break-after:auto;
+  }
+  body.calendar-print-mode .calendar-week-title {
+    display:block;
+    font-size:12pt;
+    font-weight:900;
+    border-bottom:1.5pt solid #111827;
+    padding:0 0 2mm;
+    margin:0 0 1mm;
+  }
+  body.calendar-print-mode .calendar-day { padding:1.5mm 0; }
+  body.calendar-print-mode .calendar-event summary { padding:1.5mm 2mm; }
 }
   </style>
 </head>
@@ -6185,7 +6206,7 @@ function renderReservationCalendar() {
   Object.values(byDate).forEach(dayOrders => dayOrders.sort((a, b) => String(a.time || '99:99').localeCompare(String(b.time || '99:99'))));
   const weekdays = ['日','月','火','水','木','金','土'];
   const today = calendarDateString(new Date());
-  els.calendarAgenda.innerHTML = dates.map(dateString => {
+  const renderDay = dateString => {
     const date = calendarDateObject(dateString);
     const day = date.getDay();
     const dayOrders = byDate[dateString] || [];
@@ -6194,6 +6215,17 @@ function renderReservationCalendar() {
       <div class="calendar-date ${dateClass}">${date.getMonth() + 1}/${date.getDate()}<small>${weekdays[day]}曜日・${dayOrders.length}件</small></div>
       <div class="calendar-events">${dayOrders.length ? dayOrders.map(renderCalendarEvent).join('') : '<div class="calendar-empty">予定なし</div>'}</div>
     </section>`;
+  };
+  const weeks = [];
+  for (let index = 0; index < dates.length; index += 7) weeks.push(dates.slice(index, index + 7));
+  els.calendarAgenda.innerHTML = weeks.map(weekDates => {
+    const first = calendarDateObject(weekDates[0]);
+    const last = calendarDateObject(weekDates[weekDates.length - 1]);
+    const rangeTitle = `${first.getFullYear()}年${first.getMonth() + 1}月${first.getDate()}日 ～ ${last.getMonth() + 1}月${last.getDate()}日`;
+    return `<div class="calendar-week">
+      <div class="calendar-week-title">予約カレンダー　${escapeHtml(rangeTitle)}</div>
+      ${weekDates.map(renderDay).join('')}
+    </div>`;
   }).join('');
 }
 
@@ -6936,13 +6968,9 @@ if (!isWeddingOrAnniversaryCake) {
       editOrder(button.dataset.calendarEdit);
     });
     els.printCalendarBtn.addEventListener('click', () => {
-      const details = [...els.calendarAgenda.querySelectorAll('details')];
-      const openStates = details.map(detail => detail.open);
-      details.forEach(detail => { detail.open = true; });
       document.body.classList.add('calendar-print-mode');
       const cleanup = () => {
         document.body.classList.remove('calendar-print-mode');
-        details.forEach((detail, index) => { detail.open = openStates[index]; });
         window.removeEventListener('afterprint', cleanup);
       };
       window.addEventListener('afterprint', cleanup);
