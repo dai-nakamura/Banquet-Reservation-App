@@ -1633,6 +1633,100 @@ body.ocr-modal-open { overflow: hidden; }
   font-size:12px;
   line-height:1.6;
 }
+.calendar-section { grid-column: 1 / -1; }
+.calendar-toolbar {
+  display: grid;
+  grid-template-columns: minmax(130px,1fr) auto minmax(130px,1fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+.calendar-quick-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+.calendar-quick-row button { padding:8px 10px; font-size:12px; }
+.calendar-agenda { display:grid; gap:10px; }
+.calendar-day {
+  display:grid;
+  grid-template-columns: 82px minmax(0,1fr);
+  gap:10px;
+  padding:10px 0;
+  border-top:1px solid var(--line);
+}
+.calendar-day:first-child { border-top:0; }
+.calendar-date {
+  position:sticky;
+  top:8px;
+  align-self:start;
+  font-weight:900;
+  font-size:17px;
+  line-height:1.25;
+}
+.calendar-date small { display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+.calendar-date.is-sun { color:#dc2626; }
+.calendar-date.is-sat { color:#2563eb; }
+.calendar-date.is-today { background:#111827; color:#fff; border-radius:12px; padding:8px; }
+.calendar-date.is-today small { color:#e5e7eb; }
+.calendar-events { display:grid; gap:7px; min-width:0; }
+.calendar-empty {
+  padding:11px 12px;
+  border:1px dashed #d1d5db;
+  border-radius:12px;
+  color:#9ca3af;
+  font-size:12px;
+  background:#fafafa;
+}
+.calendar-event {
+  border:1px solid var(--line);
+  border-left:6px solid #3b82f6;
+  border-radius:13px;
+  background:#fff;
+  overflow:hidden;
+}
+.calendar-event.wedding { border-left-color:#8b5cf6; }
+.calendar-event.anniversary { border-left-color:#22c55e; }
+.calendar-event.banquet { border-left-color:#3b82f6; }
+.calendar-event summary {
+  list-style:none;
+  cursor:pointer;
+  padding:10px 11px;
+}
+.calendar-event summary::-webkit-details-marker { display:none; }
+.calendar-event-head { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+.calendar-event-time { font-size:13px; font-weight:900; white-space:nowrap; }
+.calendar-event-title { flex:1; min-width:0; font-size:14px; font-weight:900; line-height:1.3; }
+.calendar-event-tag { font-size:10px; font-weight:800; border-radius:999px; padding:3px 7px; background:#f3f4f6; white-space:nowrap; }
+.calendar-event-preview { margin-top:5px; font-size:11px; color:var(--muted); line-height:1.45; }
+.calendar-event-body { border-top:1px solid var(--line); padding:10px 11px 12px; background:#fafafa; }
+.calendar-detail-row { display:grid; grid-template-columns:90px minmax(0,1fr); gap:8px; font-size:12px; line-height:1.5; padding:3px 0; }
+.calendar-detail-row strong { color:#4b5563; }
+.calendar-status-warning { color:#b45309; font-weight:800; }
+@media (max-width:600px) {
+  .calendar-toolbar { grid-template-columns:1fr 1fr; }
+  .calendar-toolbar .date-range-sep { display:none; }
+  .calendar-day { grid-template-columns:62px minmax(0,1fr); gap:7px; }
+  .calendar-date { font-size:14px; }
+  .calendar-event-head { flex-wrap:wrap; }
+  .calendar-event-title { flex-basis:calc(100% - 70px); }
+  .calendar-detail-row { grid-template-columns:72px minmax(0,1fr); }
+}
+@media print {
+  body.calendar-print-mode * { visibility:hidden; }
+  body.calendar-print-mode #calendarSection,
+  body.calendar-print-mode #calendarSection * { visibility:visible; }
+  body.calendar-print-mode #calendarSection {
+    position:absolute; inset:0; width:100%; padding:0; box-shadow:none;
+  }
+  body.calendar-print-mode .calendar-toolbar,
+  body.calendar-print-mode .calendar-quick-row,
+  body.calendar-print-mode .calendar-edit-btn { display:none!important; }
+  body.calendar-print-mode .calendar-day { grid-template-columns:28mm minmax(0,1fr); break-inside:avoid; padding:2.5mm 0; }
+  body.calendar-print-mode .calendar-date { position:static; font-size:11pt; }
+  body.calendar-print-mode .calendar-event { break-inside:avoid; }
+  body.calendar-print-mode .calendar-event summary { padding:2mm 2.5mm; }
+  body.calendar-print-mode .calendar-event-body { display:block!important; padding:2mm 2.5mm; }
+  body.calendar-print-mode .calendar-event-title { font-size:10pt; }
+  body.calendar-print-mode .calendar-event-preview,
+  body.calendar-print-mode .calendar-detail-row { font-size:8pt; }
+}
   </style>
 </head>
 
@@ -1662,11 +1756,12 @@ body.ocr-modal-open { overflow: hidden; }
     <div class="pill-row" id="viewToggle">
       <button class="pill active" data-view="form">入力</button>
       <button class="pill" data-view="list">一覧</button>
+      <button class="pill" data-view="calendar">カレンダー</button>
     </div>
     <div class="today-summary" id="todaySummary"></div>
 
     <div class="layout">
-      <section class="card">
+      <section class="card" id="formSection">
         <h2 class="section-title">注文入力</h2>
         <div class="field">
           <label class="label">カテゴリ</label>
@@ -1848,7 +1943,7 @@ body.ocr-modal-open { overflow: hidden; }
         </form>
       </section>
 
-      <section class="card">
+      <section class="card" id="listSection">
         <h2 class="section-title">一覧</h2>
 <div class="list-mode-row" id="listModeRow">
   <button type="button" class="list-mode-btn active" data-mode="active">
@@ -1895,6 +1990,30 @@ body.ocr-modal-open { overflow: hidden; }
         </div>
         <div class="list" id="ordersList"></div>
         <div class="order-detail-panel hidden" id="orderDetailPanel"></div>
+      </section>
+
+      <section class="card calendar-section view-hidden" id="calendarSection">
+        <div class="item-head" style="margin-bottom:12px;">
+          <div>
+            <h2 class="section-title" style="margin-bottom:4px;">予約カレンダー</h2>
+            <div class="helper">指定期間を日付順に表示します。予定がない日も省略しません。</div>
+          </div>
+          <button type="button" class="btn-light" id="printCalendarBtn">A4印刷</button>
+        </div>
+        <div class="calendar-toolbar">
+          <div class="field"><label class="label">開始日</label><input type="date" class="input" id="calendarFromDate"></div>
+          <div class="date-range-sep">～</div>
+          <div class="field"><label class="label">終了日</label><input type="date" class="input" id="calendarToDate"></div>
+          <button type="button" class="btn-dark" id="applyCalendarRangeBtn">表示</button>
+        </div>
+        <div class="calendar-quick-row">
+          <button type="button" class="btn-light" data-calendar-range="today">今日</button>
+          <button type="button" class="btn-light" data-calendar-range="week">7日間</button>
+          <button type="button" class="btn-light" data-calendar-range="nextWeek">来週</button>
+          <button type="button" class="btn-light" data-calendar-range="month">今月</button>
+          <button type="button" class="btn-light" data-calendar-range="nextMonth">翌月</button>
+        </div>
+        <div class="calendar-agenda" id="calendarAgenda"></div>
       </section>
     </div>
   </div>
@@ -2289,10 +2408,17 @@ body.ocr-modal-open { overflow: hidden; }
       bulkDeleteSelectedBtn: document.getElementById('bulkDeleteSelectedBtn'),
       bulkDeleteCancelBtn: document.getElementById('bulkDeleteCancelBtn'),
       bulkDeleteCount: document.getElementById('bulkDeleteCount'),
+      calendarSection: document.getElementById('calendarSection'),
+      calendarFromDate: document.getElementById('calendarFromDate'),
+      calendarToDate: document.getElementById('calendarToDate'),
+      calendarAgenda: document.getElementById('calendarAgenda'),
+      applyCalendarRangeBtn: document.getElementById('applyCalendarRangeBtn'),
+      printCalendarBtn: document.getElementById('printCalendarBtn'),
     };
     const viewToggle = document.getElementById('viewToggle');
-    const formSection = document.querySelector('.layout > section:first-child');
-    const listSection = document.querySelector('.layout > section:last-child');
+    const formSection = document.getElementById('formSection');
+    const listSection = document.getElementById('listSection');
+    const calendarSection = document.getElementById('calendarSection');
     const clearDateFilterBtn = document.getElementById('clearDateFilter');
 const weddingEls = {
   wrap: document.getElementById('weddingDocumentsWrap'),
@@ -5908,6 +6034,169 @@ function updateBulkDeleteControls() {
   els.bulkDeleteSelectedBtn.disabled = selectedOrderIds.size === 0;
 }
 
+function calendarDateObject(dateString) {
+  const [year, month, day] = String(dateString || '').split('-').map(Number);
+  return year && month && day ? new Date(year, month - 1, day) : null;
+}
+
+function calendarDateString(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function calendarRangeDates(from, to) {
+  const start = calendarDateObject(from);
+  const end = calendarDateObject(to);
+  if (!start || !end || start > end) return [];
+  const dates = [];
+  const cursor = new Date(start);
+  while (cursor <= end && dates.length < 370) {
+    dates.push(calendarDateString(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+function setCalendarRange(kind) {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start);
+  if (kind === 'week') end.setDate(start.getDate() + 6);
+  if (kind === 'nextWeek') {
+    const daysUntilMonday = (8 - start.getDay()) % 7 || 7;
+    start.setDate(start.getDate() + daysUntilMonday);
+    end.setTime(start.getTime());
+    end.setDate(start.getDate() + 6);
+  }
+  if (kind === 'month') {
+    start.setDate(1);
+    end.setFullYear(start.getFullYear(), start.getMonth() + 1, 0);
+  }
+  if (kind === 'nextMonth') {
+    start.setFullYear(start.getFullYear(), start.getMonth() + 1, 1);
+    end.setFullYear(start.getFullYear(), start.getMonth() + 1, 0);
+  }
+  els.calendarFromDate.value = calendarDateString(start);
+  els.calendarToDate.value = calendarDateString(end);
+  renderReservationCalendar();
+}
+
+function calendarItemText(item) {
+  const quantity = Math.max(1, Number(item.quantity || 1));
+  const sizeText = [item.multiSize, item.size, item.squareSize].filter(Boolean).join('・');
+  const isCake = /ケーキ/.test(`${item.type || ''}${item.name || ''}`);
+  const tier = isCake ? String(item.notes || '').match(/段数\s*[：:]\s*([^\n]+)/)?.[1]?.trim() : '';
+  const detailText = [sizeText, tier && !String(item.name || '').includes(tier) ? tier : ''].filter(Boolean).join('・');
+  const unit = isCake ? '台'
+    : /アフタヌーンティー/.test(`${item.type || ''}${item.name || ''}`) ? 'セット'
+      : '個';
+  return `${item.name || item.type || '内容未入力'}${detailText ? `（${detailText}）` : ''} ×${quantity}${unit}`;
+}
+
+function calendarOrderKind(order) {
+  const itemText = (order.items || []).map(item => `${item.type || ''} ${item.name || ''}`).join(' ');
+  const allText = `${order.category || ''} ${itemText} ${order.orderNotes || ''}`;
+  if (order.category === '婚礼') return { className: 'wedding', label: '婚礼' };
+  if (order.category === 'アニバーサリー') return { className: 'anniversary', label: 'アニバーサリー' };
+  if (/ウェルカムフルーツ/.test(allText)) return { className: 'banquet', label: 'ウェルカムフルーツ' };
+  if (order.category === 'アフタヌーンティー' || /アフタヌーンティー/.test(allText)) return { className: 'banquet', label: 'アフタヌーンティー' };
+  if (/皿盛り|試食|下見/.test(allText)) return { className: 'banquet', label: '皿盛り・下見' };
+  return { className: 'banquet', label: order.category || '予約' };
+}
+
+function weddingTimeText(order) {
+  const source = [order.orderNotes, order.weddingDocuments?.notes].filter(Boolean).join('\n');
+  const ceremony = source.match(/挙式\s*([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+  const reception = source.match(/披露宴\s*([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+  const values = [
+    ceremony ? `挙式 ${String(ceremony[1]).padStart(2, '0')}:${ceremony[2]}` : '',
+    reception ? `披露宴 ${String(reception[1]).padStart(2, '0')}:${reception[2]}` : '',
+    !ceremony && !reception && order.time ? order.time : ''
+  ].filter(Boolean);
+  return [...new Set(values)].join('／') || '時間未入力';
+}
+
+function renderCalendarEvent(order) {
+  const kind = calendarOrderKind(order);
+  const items = order.items || [];
+  const cakes = items.filter(item => /ウエディングケーキ|ウェディングケーキ/.test(`${item.type || ''}${item.name || ''}`));
+  const gifts = items.filter(item => item.type === 'ギフト' || /引き菓子|引菓子|ギフト/.test(`${item.type || ''}${item.name || ''}`));
+  const plated = items.filter(item => item.type === '皿盛りデザート' || /皿盛り/.test(`${item.type || ''}${item.name || ''}`));
+  const timeText = order.category === '婚礼' ? weddingTimeText(order) : (order.time || '時間未入力');
+  const title = order.category === '婚礼'
+    ? (order.venue || '会場未入力')
+    : kind.label;
+  const productLines = order.category === '婚礼'
+    ? [
+        cakes.length ? `ケーキ：${cakes.map(calendarItemText).join('／')}` : 'ケーキ：未入力',
+        gifts.length ? `引き菓子：${gifts.map(calendarItemText).join('／')}` : '引き菓子：未入力',
+        plated.length ? `皿盛り：${plated.map(calendarItemText).join('／')}` : ''
+      ].filter(Boolean)
+    : items.map(calendarItemText);
+  const preview = order.category === '婚礼'
+    ? [order.coursePrice ? `コース ${Number(order.coursePrice).toLocaleString()}円` : 'コース料金未入力', ...productLines].join('　')
+    : (productLines.join('／') || '商品未入力');
+  const sourceDocuments = Array.isArray(order.sourceDocuments) ? order.sourceDocuments : [];
+  const receivedDocuments = sourceDocuments.length
+    ? [...new Set(sourceDocuments.map(document => document.type).filter(Boolean))].join('／')
+    : '';
+  return `
+    <details class="calendar-event ${kind.className}">
+      <summary>
+        <div class="calendar-event-head">
+          <span class="calendar-event-time">${escapeHtml(timeText)}</span>
+          <span class="calendar-event-title">${escapeHtml(title)}</span>
+          <span class="calendar-event-tag">${escapeHtml(kind.label)}</span>
+        </div>
+        <div class="calendar-event-preview">${escapeHtml(preview)}</div>
+      </summary>
+      <div class="calendar-event-body">
+        ${order.category === '婚礼' ? `
+          <div class="calendar-detail-row"><strong>会場</strong><span class="${order.venue ? '' : 'calendar-status-warning'}">${escapeHtml(order.venue || '未入力')}</span></div>
+          <div class="calendar-detail-row"><strong>時間</strong><span>${escapeHtml(timeText)}</span></div>
+          <div class="calendar-detail-row"><strong>コース料金</strong><span class="${order.coursePrice ? '' : 'calendar-status-warning'}">${order.coursePrice ? `${Number(order.coursePrice).toLocaleString()}円` : '未入力'}</span></div>
+          <div class="calendar-detail-row"><strong>ケーキ</strong><span class="${cakes.length ? '' : 'calendar-status-warning'}">${escapeHtml(cakes.length ? cakes.map(calendarItemText).join('／') : '未入力')}</span></div>
+          <div class="calendar-detail-row"><strong>引き菓子</strong><span class="${gifts.length ? '' : 'calendar-status-warning'}">${escapeHtml(gifts.length ? gifts.map(calendarItemText).join('／') : '未入力')}</span></div>
+          ${plated.length ? `<div class="calendar-detail-row"><strong>皿盛り</strong><span>${escapeHtml(plated.map(calendarItemText).join('／'))}</span></div>` : ''}
+          ${receivedDocuments ? `<div class="calendar-detail-row"><strong>受領書類</strong><span>${escapeHtml(receivedDocuments)}</span></div>` : ''}
+        ` : `
+          <div class="calendar-detail-row"><strong>時間</strong><span class="${order.time ? '' : 'calendar-status-warning'}">${escapeHtml(order.time || '未入力')}</span></div>
+          <div class="calendar-detail-row"><strong>種類・数量</strong><span class="${items.length ? '' : 'calendar-status-warning'}">${escapeHtml(productLines.join('／') || '未入力')}</span></div>
+          ${order.venue ? `<div class="calendar-detail-row"><strong>場所</strong><span>${escapeHtml(order.venue)}</span></div>` : ''}
+        `}
+        <div class="calendar-detail-row"><strong>状態</strong><span>${escapeHtml(order.status || '未確認')}</span></div>
+        <button type="button" class="btn-light calendar-edit-btn" data-calendar-edit="${escapeHtml(String(order.id))}" style="margin-top:8px;">予約を開く</button>
+      </div>
+    </details>`;
+}
+
+function renderReservationCalendar() {
+  const from = els.calendarFromDate.value;
+  const to = els.calendarToDate.value;
+  const dates = calendarRangeDates(from, to);
+  if (!dates.length) {
+    els.calendarAgenda.innerHTML = '<div class="empty">開始日と終了日を確認してください。</div>';
+    return;
+  }
+  const orders = loadOrders().filter(order => order.status !== 'キャンセル' && order.date >= from && order.date <= to);
+  const byDate = orders.reduce((map, order) => {
+    (map[order.date] ||= []).push(order);
+    return map;
+  }, {});
+  Object.values(byDate).forEach(dayOrders => dayOrders.sort((a, b) => String(a.time || '99:99').localeCompare(String(b.time || '99:99'))));
+  const weekdays = ['日','月','火','水','木','金','土'];
+  const today = calendarDateString(new Date());
+  els.calendarAgenda.innerHTML = dates.map(dateString => {
+    const date = calendarDateObject(dateString);
+    const day = date.getDay();
+    const dayOrders = byDate[dateString] || [];
+    const dateClass = [day === 0 ? 'is-sun' : '', day === 6 ? 'is-sat' : '', dateString === today ? 'is-today' : ''].filter(Boolean).join(' ');
+    return `<section class="calendar-day">
+      <div class="calendar-date ${dateClass}">${date.getMonth() + 1}/${date.getDate()}<small>${weekdays[day]}曜日・${dayOrders.length}件</small></div>
+      <div class="calendar-events">${dayOrders.length ? dayOrders.map(renderCalendarEvent).join('') : '<div class="calendar-empty">予定なし</div>'}</div>
+    </section>`;
+  }).join('');
+}
+
 function renderOrders() {
   const all = loadOrders();
   const orders = filteredOrders();
@@ -6110,8 +6399,8 @@ function restoreOrder(id) {
   window.alert('予約を進行中に戻しました。');
 }
     function editOrder(id) {
-      const order = loadOrders().find(row => row.id === id); if (!order) return;
-      editingId = id; selectedCategory = order.category; renderCategories(); applyCategoryUI(); syncCategoryButtons();
+      const order = loadOrders().find(row => String(row.id) === String(id)); if (!order) return;
+      editingId = order.id; selectedCategory = order.category; renderCategories(); applyCategoryUI(); syncCategoryButtons();
       els.submitBtn.textContent = '更新する';
       els.orderDate.value = order.date || ''; els.orderTime.value = order.time || ''; els.clientName.value = order.clientName || ''; els.venue.value = order.venue || ''; els.guestCount.value = order.guestCount || ''; els.coursePrice.value = order.coursePrice || ''; els.status.value = order.status || '未確認'; els.afternoonTeaType.value = order.afternoonTeaType || ''; els.orderNotes.value = order.orderNotes || '';
       els.itemsArea.innerHTML = ''; els.masterAllergyArea.innerHTML = '';
@@ -6611,13 +6900,11 @@ if (!isWeddingOrAnniversaryCake) {
       document.querySelectorAll('#viewToggle .pill').forEach(p => p.classList.remove('active'));
       e.target.classList.add('active');
 
-      if (e.target.dataset.view === 'form') {
-        formSection.classList.remove('view-hidden');
-        listSection.classList.add('view-hidden');
-      } else {
-        formSection.classList.add('view-hidden');
-        listSection.classList.remove('view-hidden');
-      }
+      const targetView = e.target.dataset.view;
+      formSection.classList.toggle('view-hidden', targetView !== 'form');
+      listSection.classList.toggle('view-hidden', targetView !== 'list');
+      calendarSection.classList.toggle('view-hidden', targetView !== 'calendar');
+      if (targetView === 'calendar') renderReservationCalendar();
     });
 
     fromDate.addEventListener('change', renderOrders);
@@ -6636,6 +6923,34 @@ if (!isWeddingOrAnniversaryCake) {
     els.orderForm.addEventListener('submit', handleSubmit);
     els.searchInput.addEventListener('input', renderOrders);
     els.sortSelect.addEventListener('change', renderOrders);
+    els.applyCalendarRangeBtn.addEventListener('click', renderReservationCalendar);
+    els.calendarFromDate.addEventListener('change', renderReservationCalendar);
+    els.calendarToDate.addEventListener('change', renderReservationCalendar);
+    document.querySelectorAll('[data-calendar-range]').forEach(button => {
+      button.addEventListener('click', () => setCalendarRange(button.dataset.calendarRange));
+    });
+    els.calendarAgenda.addEventListener('click', event => {
+      const button = event.target.closest('[data-calendar-edit]');
+      if (!button) return;
+      event.preventDefault();
+      editOrder(button.dataset.calendarEdit);
+    });
+    els.printCalendarBtn.addEventListener('click', () => {
+      const details = [...els.calendarAgenda.querySelectorAll('details')];
+      const openStates = details.map(detail => detail.open);
+      details.forEach(detail => { detail.open = true; });
+      document.body.classList.add('calendar-print-mode');
+      const cleanup = () => {
+        document.body.classList.remove('calendar-print-mode');
+        details.forEach((detail, index) => { detail.open = openStates[index]; });
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+      setTimeout(() => {
+        if (document.body.classList.contains('calendar-print-mode')) cleanup();
+      }, 60000);
+    });
     els.importJsonBtn.addEventListener('click', () => els.importJsonInput.click());
     els.importJsonInput.addEventListener('change', handleJsonImport);
     els.exportBtn.addEventListener('click', exportJson);
@@ -6777,6 +7092,8 @@ document.getElementById('todaySummary').addEventListener('click', () => {
     syncCategoryButtons();
     resetForm();
     listSection.classList.add('view-hidden');
+    calendarSection.classList.add('view-hidden');
+    setCalendarRange('month');
     renderOrders();
     document.querySelectorAll('.section-header').forEach(header => {
 
