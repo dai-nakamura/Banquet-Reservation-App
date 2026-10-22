@@ -1633,6 +1633,32 @@ body.ocr-modal-open { overflow: hidden; }
   font-size:12px;
   line-height:1.6;
 }
+.ocr-frame-controls {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px 12px;
+  margin:10px 0;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#f8fafc;
+}
+.ocr-frame-control label { display:flex; justify-content:space-between; gap:8px; font-size:11px; font-weight:800; color:#475569; }
+.ocr-frame-control input { width:100%; accent-color:#16a36f; }
+.ocr-frame-reset { grid-column:1 / -1; }
+.ai-ocr-panel {
+  margin:10px 0;
+  border:1px solid #bfdbfe;
+  border-radius:12px;
+  padding:10px;
+  background:#eff6ff;
+}
+.ai-ocr-panel summary { cursor:pointer; font-weight:900; color:#1e3a8a; }
+.ai-connection-status { margin:8px 0; font-size:12px; font-weight:800; color:#475569; }
+.ai-connection-status.ready { color:#047857; }
+.ai-connection-status.error { color:#b91c1c; }
+.ai-read-button { background:#1d4ed8!important; }
+.ocr-method-actions { display:grid; grid-template-columns:1.2fr .8fr; gap:8px; margin-top:10px; }
 .capture-panel { max-width:720px; }
 .capture-type-grid {
   display:grid;
@@ -1680,6 +1706,13 @@ body.ocr-modal-open { overflow: hidden; }
   width:100%;
   height:100%;
   object-fit:cover;
+}
+.capture-field-overlay { position:absolute; inset:0; pointer-events:none; z-index:2; }
+.capture-field-overlay .ocr-field-box {
+  border-width:1.5px;
+  background:rgba(34,197,94,.035);
+  font-size:8px;
+  line-height:1.15;
 }
 .capture-mask { position:absolute; inset:0; pointer-events:none; }
 .capture-mask::before {
@@ -2261,8 +2294,25 @@ body.ocr-modal-open { overflow: hidden; }
       </div>
       <div class="capture-type-grid" id="captureTypeGrid"></div>
       <div class="ocr-template-guide" id="captureTemplateGuide"></div>
+      <details class="ai-ocr-panel" id="aiOcrSettings">
+        <summary>AI高精度読取の接続設定</summary>
+        <div class="ai-connection-status" id="aiConnectionStatus">未設定</div>
+        <div class="field"><label class="label">Supabase Project URL</label><input class="input" id="aiSupabaseUrl" placeholder="https://xxxx.supabase.co"></div>
+        <div class="field"><label class="label">Supabase Publishable key</label><input class="input" id="aiSupabaseKey" placeholder="sb_publishable_... または anon key"></div>
+        <div class="grid-2">
+          <div class="field"><label class="label">ログイン用メール</label><input class="input" id="aiLoginEmail" type="email" autocomplete="username"></div>
+          <div class="field"><label class="label">パスワード</label><input class="input" id="aiLoginPassword" type="password" autocomplete="current-password"></div>
+        </div>
+        <div class="button-row">
+          <button type="button" class="btn-light" id="saveAiConfigBtn">接続先を保存</button>
+          <button type="button" class="btn-dark" id="aiLoginBtn">ログイン</button>
+          <button type="button" class="btn-light" id="aiLogoutBtn">ログアウト</button>
+        </div>
+        <div class="helper">Project URLとPublishable keyは端末内だけに保存します。OpenAI APIキーはここへ入力せず、Supabase側のSecretに保存します。</div>
+      </details>
       <div class="capture-stage" id="captureStage">
         <video id="captureVideo" autoplay muted playsinline></video>
+        <div class="capture-field-overlay" id="captureFieldOverlay"></div>
         <div class="capture-mask">
           <span class="capture-corner tl"></span><span class="capture-corner tr"></span>
           <span class="capture-corner bl"></span><span class="capture-corner br"></span>
@@ -2485,6 +2535,7 @@ body.ocr-modal-open { overflow: hidden; }
     </div>
   </template>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script>
     const STORAGE_KEY = 'banquet_reservation_v7';
@@ -2616,16 +2667,29 @@ const captureEls = {
   guide: document.getElementById('captureTemplateGuide'),
   stage: document.getElementById('captureStage'),
   video: document.getElementById('captureVideo'),
+  fieldOverlay: document.getElementById('captureFieldOverlay'),
   status: document.getElementById('captureStatus'),
   guideLabel: document.getElementById('captureGuideLabel'),
   takeBtn: document.getElementById('takeDocumentPhotoBtn'),
   galleryBtn: document.getElementById('captureGalleryBtn'),
-  fallbackBtn: document.getElementById('nativeCameraFallbackBtn')
+  fallbackBtn: document.getElementById('nativeCameraFallbackBtn'),
+  aiSettings: document.getElementById('aiOcrSettings'),
+  aiStatus: document.getElementById('aiConnectionStatus'),
+  aiUrl: document.getElementById('aiSupabaseUrl'),
+  aiKey: document.getElementById('aiSupabaseKey'),
+  aiEmail: document.getElementById('aiLoginEmail'),
+  aiPassword: document.getElementById('aiLoginPassword'),
+  saveAiConfigBtn: document.getElementById('saveAiConfigBtn'),
+  aiLoginBtn: document.getElementById('aiLoginBtn'),
+  aiLogoutBtn: document.getElementById('aiLogoutBtn')
 };
 let ocrWorker = null;
 let ocrPendingFiles = [];
 let captureStream = null;
 let selectedCaptureTemplate = 'anniversary';
+const DEFAULT_OCR_FRAME_ADJUSTMENT = Object.freeze({ offsetX:0, offsetY:0, scaleX:1, scaleY:1 });
+const AI_OCR_CONFIG_KEY = 'reservationAiOcrConfigV1';
+let aiSupabaseClient = null;
 
 // 座標は撮影枠全体に対する比率。calibrated=true は実際のホテル帳票写真を基準に調整済み。
 const OCR_DOCUMENT_TEMPLATES = {
@@ -4304,15 +4368,184 @@ function setOcrProgress(message, ratio = 0) {
 async function getOcrWorker() {
   if (ocrWorker) return ocrWorker;
   if (!window.Tesseract) throw new Error('OCR本体を読み込めませんでした。');
-  setOcrProgress('日本語OCR辞書を読み込んでいます。4Gでは初回に時間がかかります…', 0.05);
-  ocrWorker = await Tesseract.createWorker('jpn', 1, {
+  setOcrProgress('日本語・英語OCR辞書を読み込んでいます。4Gでは初回に時間がかかります…', 0.05);
+  ocrWorker = await Tesseract.createWorker(['jpn','eng'], 1, {
     logger: message => {
       if (typeof message.progress === 'number') {
         setOcrProgress(message.status || '文字を読み取っています…', message.progress);
       }
     }
   });
+  await ocrWorker.setParameters({
+    preserve_interword_spaces: '1',
+    user_defined_dpi: '300'
+  });
   return ocrWorker;
+}
+
+function loadAiOcrConfig() {
+  try { return JSON.parse(localStorage.getItem(AI_OCR_CONFIG_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function saveAiOcrConfig() {
+  const config = {
+    url: captureEls.aiUrl.value.trim().replace(/\/$/, ''),
+    key: captureEls.aiKey.value.trim(),
+    email: captureEls.aiEmail.value.trim()
+  };
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(config.url)) {
+    throw new Error('Supabase Project URLを確認してください。');
+  }
+  if (!config.key) throw new Error('Supabase Publishable keyを入力してください。');
+  localStorage.setItem(AI_OCR_CONFIG_KEY, JSON.stringify(config));
+  initializeAiSupabaseClient();
+  return config;
+}
+
+function initializeAiSupabaseClient() {
+  const config = loadAiOcrConfig();
+  captureEls.aiUrl.value = config.url || '';
+  captureEls.aiKey.value = config.key || '';
+  captureEls.aiEmail.value = config.email || '';
+  if (!config.url || !config.key || !window.supabase?.createClient) {
+    aiSupabaseClient = null;
+    updateAiConnectionStatus('AI高精度読取：接続先未設定', '');
+    return null;
+  }
+  aiSupabaseClient = window.supabase.createClient(config.url, config.key, {
+    auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+  });
+  refreshAiConnectionStatus();
+  return aiSupabaseClient;
+}
+
+function updateAiConnectionStatus(message, state = '') {
+  if (!captureEls.aiStatus) return;
+  captureEls.aiStatus.textContent = message;
+  captureEls.aiStatus.classList.toggle('ready', state === 'ready');
+  captureEls.aiStatus.classList.toggle('error', state === 'error');
+}
+
+async function refreshAiConnectionStatus() {
+  if (!aiSupabaseClient) return false;
+  const { data, error } = await aiSupabaseClient.auth.getSession();
+  if (error) {
+    updateAiConnectionStatus(`接続エラー：${error.message}`, 'error');
+    return false;
+  }
+  const email = data.session?.user?.email;
+  if (email) {
+    updateAiConnectionStatus(`AI高精度読取：${email}でログイン済み`, 'ready');
+    return true;
+  }
+  updateAiConnectionStatus('接続先保存済み・ログインが必要です', '');
+  return false;
+}
+
+async function loginAiOcr() {
+  try {
+    if (!aiSupabaseClient) saveAiOcrConfig();
+    const email = captureEls.aiEmail.value.trim();
+    const password = captureEls.aiPassword.value;
+    if (!email || !password) throw new Error('メールアドレスとパスワードを入力してください。');
+    updateAiConnectionStatus('ログインしています…');
+    const { error } = await aiSupabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    captureEls.aiPassword.value = '';
+    await refreshAiConnectionStatus();
+  } catch (error) {
+    updateAiConnectionStatus(`ログイン失敗：${error.message}`, 'error');
+  }
+}
+
+async function logoutAiOcr() {
+  if (aiSupabaseClient) await aiSupabaseClient.auth.signOut();
+  await refreshAiConnectionStatus();
+}
+
+function fileToAiImage(file, maxSide = 2600) {
+  return loadImageSource(file).then(image => {
+    const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const context = canvas.getContext('2d');
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', .9);
+  });
+}
+
+function normalizeAiOcrResult(template, raw) {
+  const data = raw?.result || raw || {};
+  const items = Array.isArray(data.items) ? data.items.map(item => ({
+    type:item.type || template.defaultItemType || 'その他',
+    name:item.name || template.defaultItemName || template.label,
+    quantity:Math.max(1, Number(item.quantity || 1))
+  })) : [];
+  const allergyPeople = Array.isArray(data.allergyPeople) ? data.allergyPeople.map(item => ({
+    foods:item.foods || '', count:Math.max(1, Number(item.count || 1))
+  })).filter(item => item.foods) : [];
+  const restrictions = data.restrictions || data.allergy || '記載なし';
+  const notes = [data.notes, ...(Array.isArray(data.uncertainties) ? data.uncertainties.map(value => `要確認：${value}`) : [])].filter(Boolean).join('\n');
+  return {
+    simpleService: Boolean(template.simpleService),
+    simpleWedding: template.targetCategory === '婚礼',
+    documentType: template.documentType,
+    targetCategory: template.targetCategory,
+    date:data.date || '', time:data.time || '', timeBand:data.timeBand || '',
+    ceremonyTime:data.ceremonyTime || '', receptionTime:data.receptionTime || '',
+    clientName:data.clientName || '', venue:data.venue || '', handoff:data.handoff || data.venue || '',
+    guestCount:Number(data.guestCount || 0), coursePrice:Number(data.coursePrice || 0), cakePrice:Number(data.cakePrice || 0),
+    cakeTier:data.cakeTier || '', cakeType:data.cakeType || '',
+    sizes:Array.isArray(data.sizes) ? data.sizes : [], candle:data.candle || '', box:data.box || '', message:data.message || '',
+    restrictions, allergy:restrictions, allergyPeople, children:[],
+    items:items.length ? items : [{ type:template.defaultItemType || 'その他', name:template.defaultItemName || template.label, quantity:1 }],
+    itemType:items[0]?.type || template.defaultItemType || 'その他',
+    itemName:items[0]?.name || template.defaultItemName || template.label,
+    itemQuantity:items[0]?.quantity || 1,
+    deliveryDate:data.deliveryDate || '', deliveryVenue:data.deliveryVenue || '',
+    extraInfo:notes, corrections:Array.isArray(data.uncertainties) ? data.uncertainties : [],
+    text:data.rawText || notes,
+    cakeCutting:Boolean(data.cakeCutting), firstBite:Boolean(data.firstBite)
+  };
+}
+
+async function runAiTemplateOcr(card) {
+  const fileIndex = Number(card.dataset.fileIndex);
+  const pending = ocrPendingFiles[fileIndex];
+  if (!pending) return;
+  if (!aiSupabaseClient || !(await refreshAiConnectionStatus())) {
+    await openCaptureScreen({ startCamera:false });
+    captureEls.aiSettings.open = true;
+    alert('AI高精度読取を使うには、Supabase接続設定とログインが必要です。');
+    return;
+  }
+  const button = card.querySelector('.run-ai-template-ocr');
+  const localButton = card.querySelector('.run-template-ocr');
+  button.disabled = true;
+  localButton.disabled = true;
+  try {
+    setOcrProgress('AI高精度読取用に画像を整えています…', .12);
+    const image = await fileToAiImage(pending.file);
+    setOcrProgress('AIが帳票を読み取っています…', .45);
+    const { data, error } = await aiSupabaseClient.functions.invoke('analyze-reservation', {
+      body: { image, templateKey:pending.templateKey || selectedCaptureTemplate }
+    });
+    if (error) throw error;
+    if (!data?.result) throw new Error(data?.error || '解析結果を受け取れませんでした。');
+    const template = OCR_DOCUMENT_TEMPLATES[pending.templateKey || selectedCaptureTemplate];
+    const result = normalizeAiOcrResult(template, data);
+    setOcrProgress('AI高精度読取が完了しました。原本と照合してください。', 1);
+    card.outerHTML = renderOcrResult(result, pending.file.name, fileIndex);
+  } catch (error) {
+    console.error(error);
+    setOcrProgress(`AI読取に失敗しました：${error?.message || '接続設定を確認してください。'}`, 0);
+    button.disabled = false;
+    localButton.disabled = false;
+  }
 }
 
 function renderOcrProductRows(result) {
@@ -4626,17 +4859,59 @@ function templateOptions(selected = selectedCaptureTemplate) {
     .join('');
 }
 
-function templateOverlay(templateKey) {
+function normalizeFrameAdjustment(adjustment = {}) {
+  return {
+    offsetX: Number(adjustment.offsetX || 0),
+    offsetY: Number(adjustment.offsetY || 0),
+    scaleX: Number(adjustment.scaleX || 1),
+    scaleY: Number(adjustment.scaleY || 1)
+  };
+}
+
+function adjustTemplateField(field, adjustment = DEFAULT_OCR_FRAME_ADJUSTMENT) {
+  const value = normalizeFrameAdjustment(adjustment);
+  const x = .5 + (field.x - .5) * value.scaleX + value.offsetX;
+  const y = .5 + (field.y - .5) * value.scaleY + value.offsetY;
+  return {
+    ...field,
+    x: Math.max(0, Math.min(.995, x)),
+    y: Math.max(0, Math.min(.995, y)),
+    w: Math.max(.005, Math.min(1 - Math.max(0, x), field.w * value.scaleX)),
+    h: Math.max(.005, Math.min(1 - Math.max(0, y), field.h * value.scaleY))
+  };
+}
+
+function templateOverlay(templateKey, adjustment = DEFAULT_OCR_FRAME_ADJUSTMENT) {
   const template = OCR_DOCUMENT_TEMPLATES[templateKey];
-  return template.fields.map(field => `
+  return template.fields.map(originalField => {
+    const field = adjustTemplateField(originalField, adjustment);
+    return `
     <span class="ocr-field-box" style="left:${field.x * 100}%;top:${field.y * 100}%;width:${field.w * 100}%;height:${field.h * 100}%">
       ${escapeHtml(field.label)}
-    </span>`).join('');
+    </span>`;
+  }).join('');
+}
+
+function frameAdjustmentControls(index, adjustment = DEFAULT_OCR_FRAME_ADJUSTMENT) {
+  const value = normalizeFrameAdjustment(adjustment);
+  const controls = [
+    ['offsetX','左右',-20,20,Math.round(value.offsetX * 100),'%'],
+    ['offsetY','上下',-20,20,Math.round(value.offsetY * 100),'%'],
+    ['scaleX','横幅',70,130,Math.round(value.scaleX * 100),'%'],
+    ['scaleY','縦幅',70,130,Math.round(value.scaleY * 100),'%']
+  ];
+  return `<div class="ocr-frame-controls" data-adjustment-index="${index}">
+    ${controls.map(([key,label,min,max,current,unit]) => `<div class="ocr-frame-control">
+      <label>${label}<span data-frame-output="${key}">${current}${unit}</span></label>
+      <input class="ocr-frame-range" type="range" data-adjustment-key="${key}" min="${min}" max="${max}" step="1" value="${current}">
+    </div>`).join('')}
+    <button type="button" class="btn-light ocr-frame-reset">枠を初期位置に戻す</button>
+  </div>`;
 }
 
 function renderOcrPreparation(files, fixedTemplateKey = selectedCaptureTemplate) {
   ocrPendingFiles.forEach(item => item.url && URL.revokeObjectURL(item.url));
-  ocrPendingFiles = files.map(file => ({ file, url: URL.createObjectURL(file), templateKey: fixedTemplateKey }));
+  ocrPendingFiles = files.map(file => ({ file, url: URL.createObjectURL(file), templateKey: fixedTemplateKey, adjustment:{ ...DEFAULT_OCR_FRAME_ADJUSTMENT } }));
   ocrEls.progress.classList.add('hidden');
   ocrEls.results.innerHTML = ocrPendingFiles.map((item, index) => `
     <article class="ocr-result-card ocr-preparation-card" data-file-index="${index}">
@@ -4648,19 +4923,44 @@ function renderOcrPreparation(files, fixedTemplateKey = selectedCaptureTemplate)
       <div class="ocr-template-guide"></div>
       <div class="ocr-preview-wrap">
         <img class="ocr-preview-image" src="${item.url}" alt="選択した帳票">
-        <div class="ocr-preview-overlay">${templateOverlay(item.templateKey)}</div>
+        <div class="ocr-preview-overlay">${templateOverlay(item.templateKey, item.adjustment)}</div>
       </div>
-      <div class="helper">緑枠を欄ごとに読み、同時に用紙全体も読み取ります。選択した帳票種類を自動変更することはありません。</div>
-      <button type="button" class="btn-dark run-template-ocr" style="width:100%;margin-top:10px;">この帳票を欄ごとに読み取る</button>
+      ${frameAdjustmentControls(index, item.adjustment)}
+      <div class="helper">緑枠が実際の欄とずれている場合は、左右・上下・横幅・縦幅を調整してください。表示した緑枠の位置をそのまま読み取ります。</div>
+      <div class="ocr-method-actions">
+        <button type="button" class="btn-dark ai-read-button run-ai-template-ocr">AI高精度で読み取る</button>
+        <button type="button" class="btn-light run-template-ocr">端末OCR（予備）</button>
+      </div>
     </article>`).join('');
-  ocrEls.results.querySelectorAll('.ocr-preparation-card').forEach(card => updateTemplatePreview(card));
+  ocrEls.results.querySelectorAll('.ocr-preparation-card').forEach(card => {
+    updateTemplatePreview(card);
+    card.querySelectorAll('.ocr-frame-range').forEach(input => input.addEventListener('input', () => {
+      const pending = ocrPendingFiles[Number(card.dataset.fileIndex)];
+      const key = input.dataset.adjustmentKey;
+      pending.adjustment[key] = key.startsWith('scale') ? Number(input.value) / 100 : Number(input.value) / 100;
+      card.querySelector(`[data-frame-output="${key}"]`).textContent = `${input.value}%`;
+      updateTemplatePreview(card);
+    }));
+    card.querySelector('.ocr-frame-reset').addEventListener('click', () => {
+      const pending = ocrPendingFiles[Number(card.dataset.fileIndex)];
+      pending.adjustment = { ...DEFAULT_OCR_FRAME_ADJUSTMENT };
+      card.querySelectorAll('.ocr-frame-range').forEach(input => {
+        const key = input.dataset.adjustmentKey;
+        input.value = key.startsWith('scale') ? '100' : '0';
+        card.querySelector(`[data-frame-output="${key}"]`).textContent = `${input.value}%`;
+      });
+      updateTemplatePreview(card);
+    });
+  });
 }
 
 function updateTemplatePreview(card) {
   const key = card.querySelector('.ocr-template-select').value;
   const template = OCR_DOCUMENT_TEMPLATES[key];
+  const pending = ocrPendingFiles[Number(card.dataset.fileIndex)];
+  if (pending) pending.templateKey = key;
   card.querySelector('.ocr-template-guide').innerHTML = `<strong>${escapeHtml(template.orientation)}帳票</strong><br>${escapeHtml(template.guide)}`;
-  card.querySelector('.ocr-preview-overlay').innerHTML = templateOverlay(key);
+  card.querySelector('.ocr-preview-overlay').innerHTML = templateOverlay(key, pending?.adjustment);
 }
 
 function renderCaptureTypeButtons() {
@@ -4679,6 +4979,7 @@ function updateCaptureTemplateUi() {
     button.classList.toggle('active', button.dataset.captureTemplate === selectedCaptureTemplate);
   });
   captureEls.stage.classList.toggle('landscape', template.orientation === '横');
+  captureEls.fieldOverlay.innerHTML = templateOverlay(selectedCaptureTemplate);
   const calibratedText = template.calibrated ? `実物基準：${template.referenceImage}` : '基準写真待ち';
   captureEls.guide.innerHTML = `<strong>${escapeHtml(template.label)}・${escapeHtml(template.orientation)}向き</strong><br>${escapeHtml(template.guide)}<br><small>${escapeHtml(calibratedText)}</small>`;
   captureEls.guideLabel.textContent = `${template.orientation}向き・用紙の四隅を緑の角へ`;
@@ -4779,12 +5080,41 @@ function loadImageSource(file) {
   });
 }
 
-function createFieldCanvas(image, field) {
+function enhanceOcrCanvas(context, mode = 'balanced') {
+  const pixels = context.getImageData(0, 0, context.canvas.width, context.canvas.height);
+  const data = pixels.data;
+  const histogram = new Uint32Array(256);
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = Math.round(data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114);
+    histogram[gray] += 1;
+  }
+  const total = data.length / 4;
+  const percentile = target => {
+    let count = 0;
+    for (let value = 0; value < 256; value += 1) {
+      count += histogram[value];
+      if (count >= total * target) return value;
+    }
+    return 255;
+  };
+  const low = percentile(mode === 'strong' ? .12 : .035);
+  const high = Math.max(low + 24, percentile(mode === 'strong' ? .88 : .97));
+  for (let i = 0; i < data.length; i += 4) {
+    const gray = data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114;
+    let value = (gray - low) * 255 / (high - low);
+    value = Math.max(0, Math.min(255, value));
+    if (mode === 'strong') value = value < 168 ? Math.max(0, value * .72) : Math.min(255, 210 + (value - 168) * .53);
+    data[i] = data[i + 1] = data[i + 2] = value;
+  }
+  context.putImageData(pixels, 0, 0);
+}
+
+function createFieldCanvas(image, field, mode = 'balanced') {
   const sx = Math.max(0, Math.round(image.naturalWidth * field.x));
   const sy = Math.max(0, Math.round(image.naturalHeight * field.y));
-  const sw = Math.max(1, Math.round(image.naturalWidth * field.w));
-  const sh = Math.max(1, Math.round(image.naturalHeight * field.h));
-  const scale = Math.max(2, Math.min(4, Math.ceil(1400 / sw)));
+  const sw = Math.max(1, Math.min(image.naturalWidth - sx, Math.round(image.naturalWidth * field.w)));
+  const sh = Math.max(1, Math.min(image.naturalHeight - sy, Math.round(image.naturalHeight * field.h)));
+  const scale = Math.max(2, Math.min(4, Math.ceil(1800 / sw)));
   const canvas = document.createElement('canvas');
   canvas.width = sw * scale;
   canvas.height = sh * scale;
@@ -4792,22 +5122,12 @@ function createFieldCanvas(image, field) {
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
   context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-  const data = pixels.data;
-  let mean = 0;
-  for (let i = 0; i < data.length; i += 4) mean += (data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114);
-  mean /= data.length / 4;
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114;
-    const value = Math.max(0, Math.min(255, (gray - mean) * 1.35 + 185));
-    data[i] = data[i + 1] = data[i + 2] = value;
-  }
-  context.putImageData(pixels, 0, 0);
+  enhanceOcrCanvas(context, mode);
   return canvas;
 }
 
 function createFullPageCanvas(image) {
-  const maxSide = 2400;
+  const maxSide = 3000;
   const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
@@ -4816,7 +5136,25 @@ function createFullPageCanvas(image) {
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  enhanceOcrCanvas(context, 'balanced');
   return canvas;
+}
+
+function ocrResultScore(result) {
+  const text = normalizeOcrText(result?.data?.text || '');
+  const usefulChars = (text.match(/[一-龠々ぁ-んァ-ヶA-Za-z0-9]/g) || []).length;
+  const noiseChars = (text.match(/[|_~^`{}<>]/g) || []).length;
+  return Number(result?.data?.confidence || 0) + Math.min(24, usefulChars * .35) - noiseChars * 2;
+}
+
+async function recognizeFieldBest(worker, image, field) {
+  await worker.setParameters({ tessedit_pageseg_mode: field.psm || '7' });
+  const first = await worker.recognize(createFieldCanvas(image, field, 'balanced'));
+  const firstText = normalizeOcrText(first.data.text || '');
+  if (Number(first.data.confidence || 0) >= 68 && firstText.length >= 3) return first;
+  await worker.setParameters({ tessedit_pageseg_mode: field.psm === '7' ? '6' : (field.psm || '6') });
+  const second = await worker.recognize(createFieldCanvas(image, field, 'strong'));
+  return ocrResultScore(second) > ocrResultScore(first) ? second : first;
 }
 
 function parseDateAndTime(text) {
@@ -5017,9 +5355,8 @@ async function runTemplateOcr(card) {
     for (let index = 0; index < template.fields.length; index += 1) {
       const field = template.fields[index];
       setOcrProgress(`${field.label}を読み取っています（${index + 1}/${template.fields.length}）`, (index + 1) / (template.fields.length + 1));
-      await worker.setParameters({ tessedit_pageseg_mode: field.psm || '7' });
-      const canvas = createFieldCanvas(image, field);
-      const recognized = await worker.recognize(canvas);
+      const adjustedField = adjustTemplateField(field, pending.adjustment);
+      const recognized = await recognizeFieldBest(worker, image, adjustedField);
       fieldTexts[field.key] = recognized.data.text || '';
     }
     const result = buildTemplateResult(template, fieldTexts);
@@ -7574,6 +7911,17 @@ if (!isWeddingOrAnniversaryCake) {
     captureEls.takeBtn.addEventListener('click', takeDocumentPhoto);
     captureEls.galleryBtn.addEventListener('click', () => ocrEls.galleryInput.click());
     captureEls.fallbackBtn.addEventListener('click', () => ocrEls.cameraInput.click());
+    captureEls.saveAiConfigBtn.addEventListener('click', async () => {
+      try {
+        saveAiOcrConfig();
+        updateAiConnectionStatus('接続先を保存しました。続けてログインしてください。');
+        await refreshAiConnectionStatus();
+      } catch (error) {
+        updateAiConnectionStatus(error.message, 'error');
+      }
+    });
+    captureEls.aiLoginBtn.addEventListener('click', loginAiOcr);
+    captureEls.aiLogoutBtn.addEventListener('click', logoutAiOcr);
     captureEls.typeGrid.addEventListener('click', event => {
       const button = event.target.closest('[data-capture-template]');
       if (!button) return;
@@ -7606,6 +7954,11 @@ if (!isWeddingOrAnniversaryCake) {
       const runButton = event.target.closest('.run-template-ocr');
       if (runButton) {
         runTemplateOcr(runButton.closest('.ocr-preparation-card'));
+        return;
+      }
+      const aiRunButton = event.target.closest('.run-ai-template-ocr');
+      if (aiRunButton) {
+        runAiTemplateOcr(aiRunButton.closest('.ocr-preparation-card'));
         return;
       }
       const bulkButton = event.target.closest('.apply-ocr-bulk');
@@ -7667,6 +8020,7 @@ document.getElementById('todaySummary').addEventListener('click', () => {
   }, 50);
 });
     renderSavedVenues();
+    initializeAiSupabaseClient();
     renderCategories();
     renderFilterPills();
     applyCategoryUI();
