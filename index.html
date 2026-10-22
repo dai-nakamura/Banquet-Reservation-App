@@ -1633,6 +1633,102 @@ body.ocr-modal-open { overflow: hidden; }
   font-size:12px;
   line-height:1.6;
 }
+.capture-panel { max-width:720px; }
+.capture-type-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin:10px 0 12px;
+}
+.capture-type-button {
+  appearance:none;
+  border:1px solid var(--line);
+  background:#fff;
+  color:#111827;
+  border-radius:12px;
+  padding:11px 8px;
+  font-weight:800;
+  text-align:center;
+}
+.capture-type-button.active {
+  border-color:#111827;
+  background:#111827;
+  color:#fff;
+  box-shadow:0 0 0 2px rgba(17,24,39,.12);
+}
+.capture-type-button:disabled {
+  color:#8a9490;
+  border-style:dashed;
+  background:#eef1ef;
+  box-shadow:none;
+  cursor:not-allowed;
+}
+.capture-stage {
+  position:relative;
+  width:100%;
+  aspect-ratio:1 / 1.4142;
+  max-height:62vh;
+  margin:10px auto;
+  overflow:hidden;
+  border-radius:18px;
+  background:#080b10;
+  transition:aspect-ratio .2s ease;
+}
+.capture-stage.landscape { aspect-ratio:1.4142 / 1; }
+.capture-stage video {
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.capture-mask { position:absolute; inset:0; pointer-events:none; }
+.capture-mask::before {
+  content:"";
+  position:absolute;
+  inset:5%;
+  border:2px solid rgba(255,255,255,.95);
+  border-radius:8px;
+  box-shadow:0 0 0 999px rgba(0,0,0,.35);
+}
+.capture-guide-label {
+  position:absolute;
+  left:50%;
+  top:7%;
+  transform:translateX(-50%);
+  max-width:86%;
+  color:#fff;
+  background:rgba(17,24,39,.78);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:11px;
+  font-weight:800;
+  text-align:center;
+}
+.capture-corner {
+  position:absolute;
+  width:28px;
+  height:28px;
+  border-color:#22c55e;
+  border-style:solid;
+}
+.capture-corner.tl { left:5%; top:5%; border-width:4px 0 0 4px; border-radius:8px 0 0 0; }
+.capture-corner.tr { right:5%; top:5%; border-width:4px 4px 0 0; border-radius:0 8px 0 0; }
+.capture-corner.bl { left:5%; bottom:5%; border-width:0 0 4px 4px; border-radius:0 0 0 8px; }
+.capture-corner.br { right:5%; bottom:5%; border-width:0 4px 4px 0; border-radius:0 0 8px 0; }
+.capture-status {
+  min-height:20px;
+  font-size:12px;
+  font-weight:700;
+  color:#475569;
+  text-align:center;
+  margin:6px 0;
+}
+.capture-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+@media (max-width:520px) {
+  .capture-type-grid { grid-template-columns:1fr 1fr; gap:6px; }
+  .capture-type-button { padding:10px 5px; font-size:12px; }
+  .capture-stage { max-height:56vh; }
+}
 .calendar-section { grid-column: 1 / -1; }
 .calendar-toolbar {
   display: grid;
@@ -1759,9 +1855,9 @@ body.ocr-modal-open { overflow: hidden; }
 <div class="action-row header-actions">
   <button class="btn-light" id="printCardsBtn">カード</button>
   <button class="btn-light" id="taskModalBtn">タスク</button>
-  <button class="btn-dark" id="ocrPasteBtn">文字取込</button>
-  <button class="btn-light hidden" id="ocrCameraBtn">撮影</button>
-  <button class="btn-light hidden" id="ocrGalleryBtn">画像選択</button>
+  <button class="btn-dark" id="ocrCameraBtn">帳票撮影</button>
+  <button class="btn-light" id="ocrGalleryBtn">画像選択</button>
+  <button class="btn-light" id="ocrPasteBtn">文字貼付</button>
   <input type="file" id="ocrCameraInput" accept="image/*" capture="environment" multiple hidden />
   <input type="file" id="ocrGalleryInput" accept="image/*" multiple hidden />
   <button class="btn-light" id="adminToggleBtn">管理</button>
@@ -2154,6 +2250,34 @@ body.ocr-modal-open { overflow: hidden; }
     </div>
   </div>
 
+  <div class="modal hidden" id="captureModal">
+    <div class="modal-panel capture-panel">
+      <div class="modal-toolbar">
+        <div>
+          <div class="section-title" style="margin:0;">帳票を選んで撮影</div>
+          <div class="helper">先に種類を固定します。読み取り中に別の書類へ自動変更しません。</div>
+        </div>
+        <button type="button" class="btn-light" id="closeCaptureBtn">閉じる</button>
+      </div>
+      <div class="capture-type-grid" id="captureTypeGrid"></div>
+      <div class="ocr-template-guide" id="captureTemplateGuide"></div>
+      <div class="capture-stage" id="captureStage">
+        <video id="captureVideo" autoplay muted playsinline></video>
+        <div class="capture-mask">
+          <span class="capture-corner tl"></span><span class="capture-corner tr"></span>
+          <span class="capture-corner bl"></span><span class="capture-corner br"></span>
+          <div class="capture-guide-label" id="captureGuideLabel">用紙の四隅を緑の角に合わせてください</div>
+        </div>
+      </div>
+      <div class="capture-status" id="captureStatus">カメラを起動しています…</div>
+      <div class="capture-actions">
+        <button type="button" class="btn-light" id="captureGalleryBtn">写真から選択</button>
+        <button type="button" class="btn-dark" id="takeDocumentPhotoBtn">撮影する</button>
+      </div>
+      <button type="button" class="btn-light" id="nativeCameraFallbackBtn" style="width:100%;margin-top:8px;">カメラが映らない場合</button>
+    </div>
+  </div>
+
   <template id="itemTemplate">
     <div class="item-card">
       <div class="item-head">
@@ -2361,7 +2485,7 @@ body.ocr-modal-open { overflow: hidden; }
     </div>
   </template>
 
-  <script src="ocr/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script>
     const STORAGE_KEY = 'banquet_reservation_v7';
     const VENUE_MEMORY_KEY = 'banquet_reservation_saved_venues_v1';
@@ -2485,11 +2609,146 @@ const ocrEls = {
   progressFill: document.getElementById('ocrProgressFill'),
   results: document.getElementById('ocrResults')
 };
+const captureEls = {
+  modal: document.getElementById('captureModal'),
+  closeBtn: document.getElementById('closeCaptureBtn'),
+  typeGrid: document.getElementById('captureTypeGrid'),
+  guide: document.getElementById('captureTemplateGuide'),
+  stage: document.getElementById('captureStage'),
+  video: document.getElementById('captureVideo'),
+  status: document.getElementById('captureStatus'),
+  guideLabel: document.getElementById('captureGuideLabel'),
+  takeBtn: document.getElementById('takeDocumentPhotoBtn'),
+  galleryBtn: document.getElementById('captureGalleryBtn'),
+  fallbackBtn: document.getElementById('nativeCameraFallbackBtn')
+};
 let ocrWorker = null;
 let ocrPendingFiles = [];
+let captureStream = null;
+let selectedCaptureTemplate = 'anniversary';
 
-// 座標は画像全体に対する比率。真正面の基準写真が揃ったら fields だけ調整する。
+// 座標は撮影枠全体に対する比率。calibrated=true は実際のホテル帳票写真を基準に調整済み。
 const OCR_DOCUMENT_TEMPLATES = {
+  anniversary: {
+    label: 'アニバーサリーケーキ', documentType: 'ケーキ食伝', targetCategory: 'アニバーサリー', simpleService: true,
+    defaultItemType: 'アニバーサリーケーキ', defaultItemName: 'アニバーサリーケーキ', orientation: '縦',
+    calibrated: true, referenceImage: 'IMG_1316.jpeg',
+    guide: '〈ハピネスプラン〉特典発注依頼書を使用。用紙の四隅を枠に合わせ、下端の備考欄まで入れてください。',
+    fields: [
+      { key:'clientName', label:'お客様名', x:.14, y:.19, w:.72, h:.060, psm:'7' },
+      { key:'dateTime', label:'日時', x:.14, y:.275, w:.72, h:.052, psm:'7' },
+      { key:'guestCount', label:'人数', x:.14, y:.326, w:.72, h:.050, psm:'7' },
+      { key:'venue', label:'会場・受渡', x:.14, y:.373, w:.72, h:.052, psm:'7' },
+      { key:'cakeInfo', label:'金額・サイズ・ろうそく・種類', x:.14, y:.414, w:.72, h:.155, psm:'6' },
+      { key:'message', label:'特記・メッセージ', x:.13, y:.558, w:.74, h:.174, psm:'6' },
+      { key:'allergy', label:'アレルギー・苦手・特注', x:.13, y:.710, w:.74, h:.125, psm:'6' },
+      { key:'paymentRoom', label:'支払・Room No.', x:.13, y:.825, w:.74, h:.075, psm:'6' },
+      { key:'notes', label:'備考・欄外追記', x:.13, y:.890, w:.74, h:.085, psm:'6' }
+    ]
+  },
+  afternoonTea: {
+    label: 'アフタヌーンティー', documentType: 'アフタヌーンティーメモ', targetCategory: 'アフタヌーンティー', simpleService: true,
+    defaultItemType: 'アフタヌーンティー', defaultItemName: 'アフタヌーンティー', orientation: '縦',
+    calibrated: true, referenceImage: 'IMG_1324.jpeg',
+    guide: '「食事予約受付表」を使用。用紙の四隅を枠に合わせ、備考欄まで入れてください。',
+    fields: [
+      { key:'clientName', label:'お客様名', x:.14, y:.210, w:.72, h:.058, psm:'7' },
+      { key:'dateTime', label:'日時', x:.14, y:.310, w:.72, h:.052, psm:'7' },
+      { key:'guestCount', label:'人数', x:.14, y:.358, w:.72, h:.050, psm:'7' },
+      { key:'venue', label:'会場', x:.14, y:.402, w:.72, h:.050, psm:'7' },
+      { key:'serviceInfo', label:'形式・内容・数量・特記', x:.14, y:.442, w:.72, h:.160, psm:'6' },
+      { key:'allergy', label:'アレルギー・苦手・特注', x:.14, y:.594, w:.72, h:.120, psm:'6' },
+      { key:'paymentRoom', label:'支払・Room No.', x:.14, y:.706, w:.72, h:.087, psm:'6' },
+      { key:'notes', label:'備考・欄外追記', x:.14, y:.790, w:.72, h:.155, psm:'6' }
+    ]
+  },
+  fruitPlatter: {
+    label: 'ウェルカムフルーツ', documentType: 'ウェルカムフルーツメモ', targetCategory: '宴会', simpleService: true,
+    defaultItemType: 'その他', defaultItemName: 'ウェルカムフルーツ', orientation: '縦',
+    calibrated: true, referenceImage: 'IMG_1313.jpeg',
+    guide: '「食事予約受付表」を使用。用紙の四隅を枠に合わせ、Room No.と備考欄まで入れてください。',
+    fields: [
+      { key:'clientName', label:'お客様名', x:.14, y:.205, w:.72, h:.060, psm:'7' },
+      { key:'dateTime', label:'日時', x:.14, y:.304, w:.72, h:.054, psm:'7' },
+      { key:'guestCount', label:'人数', x:.14, y:.352, w:.72, h:.052, psm:'7' },
+      { key:'venue', label:'会場', x:.14, y:.396, w:.72, h:.052, psm:'7' },
+      { key:'serviceInfo', label:'形式・内容・数量・金額', x:.14, y:.438, w:.72, h:.165, psm:'6' },
+      { key:'allergy', label:'アレルギー・苦手・特注', x:.14, y:.592, w:.72, h:.112, psm:'6' },
+      { key:'paymentRoom', label:'支払・Room No.', x:.14, y:.700, w:.72, h:.088, psm:'6' },
+      { key:'notes', label:'備考・欄外追記', x:.14, y:.785, w:.72, h:.155, psm:'6' }
+    ]
+  },
+  bridalTasting: {
+    label: 'ブライダルスイーツ試食', documentType: '試食・打合せメモ', targetCategory: '宴会', simpleService: true,
+    defaultItemType: '皿盛りデザート', defaultItemName: 'ブライダルスイーツ試食', orientation: '縦',
+    calibrated: true, referenceImage: 'IMG_1318.jpeg',
+    guide: '「下見・打合せ食事予約受付表」を使用。用紙の四隅を枠に合わせ、備考欄まで入れてください。',
+    fields: [
+      { key:'clientName', label:'お客様名', x:.10, y:.175, w:.78, h:.065, psm:'7' },
+      { key:'dateTime', label:'日時', x:.10, y:.258, w:.78, h:.055, psm:'7' },
+      { key:'guestCount', label:'人数', x:.10, y:.315, w:.78, h:.055, psm:'7' },
+      { key:'venue', label:'会場', x:.10, y:.370, w:.78, h:.055, psm:'7' },
+      { key:'serviceInfo', label:'形式・内容・試食数', x:.10, y:.420, w:.78, h:.175, psm:'6' },
+      { key:'message', label:'事前アンケート・メッセージ', x:.10, y:.585, w:.78, h:.100, psm:'6' },
+      { key:'allergy', label:'アレルギー・苦手・特注', x:.10, y:.655, w:.78, h:.115, psm:'6' },
+      { key:'paymentRoom', label:'支払・部屋掛け', x:.10, y:.765, w:.78, h:.055, psm:'6' },
+      { key:'notes', label:'備考・スケジュール・欄外追記', x:.10, y:.805, w:.78, h:.155, psm:'6' }
+    ]
+  },
+  weddingFinal10: {
+    label: '婚礼・10日前', documentType: '10日前資料', targetCategory: '婚礼', orientation: '横',
+    calibrated: true, referenceImage: 'IMG_1274.jpeg',
+    guide: '横開きの「ブライダルチェックリスト」左右2ページを一度に入れてください。文字が小さいため真上から撮影します。',
+    fields: [
+      { key:'identity', label:'婚礼日・時間・新郎新婦・会場', x:.035, y:.035, w:.43, h:.145, psm:'6' },
+      { key:'clientName', label:'新郎新婦名・連絡先', x:.035, y:.140, w:.43, h:.185, psm:'6' },
+      { key:'schedule', label:'挙式・披露宴・進行・人数', x:.035, y:.280, w:.43, h:.390, psm:'6' },
+      { key:'leftNotes', label:'宿泊・衣装・美容・左ページ追記', x:.035, y:.645, w:.43, h:.325, psm:'6' },
+      { key:'food', label:'料理・飲物・人数・コース', x:.515, y:.080, w:.43, h:.345, psm:'6' },
+      { key:'cakeInfo', label:'ウェディングケーキ・デザート', x:.515, y:.355, w:.43, h:.205, psm:'6' },
+      { key:'allergy', label:'アレルギー・子供料理・特注', x:.515, y:.490, w:.43, h:.175, psm:'6' },
+      { key:'gifts', label:'引出物・引き菓子・装花', x:.515, y:.590, w:.43, h:.275, psm:'6' },
+      { key:'rightNotes', label:'写真・備考・右ページ追記', x:.515, y:.835, w:.43, h:.135, psm:'6' }
+    ]
+  },
+  weddingGift: {
+    label: '婚礼・引き菓子', documentType: '引き菓子食伝', targetCategory: '婚礼', orientation: '縦',
+    calibrated: true, referenceImage: 'IMG_1293.jpeg',
+    guide: '縦向きの「注文書」を使用。商品表、数量、納品日、連絡事項まで四隅を入れてください。',
+    fields: [
+      { key:'identity', label:'注文日・担当', x:.13, y:.105, w:.75, h:.105, psm:'6' },
+      { key:'clientName', label:'新郎新婦名', x:.13, y:.215, w:.75, h:.095, psm:'6' },
+      { key:'dateTime', label:'挙式日・時間', x:.13, y:.295, w:.75, h:.075, psm:'7' },
+      { key:'items', label:'品名・カラー・単価・数量', x:.13, y:.355, w:.75, h:.335, psm:'6' },
+      { key:'delivery', label:'納品日・納品場所・発注日', x:.13, y:.675, w:.75, h:.105, psm:'6' },
+      { key:'notes', label:'連絡事項・欄外追記', x:.13, y:.765, w:.75, h:.155, psm:'6' }
+    ]
+  },
+  weddingCake: {
+    label: '婚礼・ウェディングケーキ', documentType: 'ケーキ食伝', targetCategory: '婚礼', orientation: '縦',
+    defaultItemType: 'ウエディングケーキ', defaultItemName: 'ウェディングケーキ',
+    calibrated: false, referenceImage: '',
+    guide: '基準写真が未登録です。実物のウェディングケーキ食伝を確認するまで撮影読取は使用できません。',
+    fields: [
+      { key:'identity', label:'婚礼日・時間・新郎新婦名', x:.06, y:.07, w:.88, h:.23, psm:'6' },
+      { key:'cakeInfo', label:'種類・段数・サイズ・人数分・料金', x:.06, y:.28, w:.88, h:.31, psm:'6' },
+      { key:'serviceInfo', label:'入刀・バイト・サーブ・数量', x:.06, y:.57, w:.88, h:.16, psm:'6' },
+      { key:'allergy', label:'アレルギー・デザート・特注', x:.06, y:.71, w:.88, h:.24, psm:'6' }
+    ]
+  },
+  frenchMenu: {
+    label: '婚礼・メニュー', documentType: 'メニュー表', targetCategory: '婚礼', orientation: '縦',
+    calibrated: true, referenceImage: 'IMG_1306.jpeg',
+    guide: '縦向きの婚礼メニュー表を使用。上部の婚礼情報から下部のケーキ・アレルギー欄まで入れてください。',
+    fields: [
+      { key:'identity', label:'婚礼日・時間・両家名・会場', x:.25, y:.095, w:.50, h:.105, psm:'6' },
+      { key:'menu', label:'メニュー・デザートビュッフェ', x:.24, y:.205, w:.52, h:.360, psm:'6' },
+      { key:'notes', label:'料理構成・割合・確認事項', x:.17, y:.565, w:.66, h:.095, psm:'6' },
+      { key:'pricing', label:'料理・飲物料金・人数', x:.31, y:.665, w:.52, h:.110, psm:'6' },
+      { key:'cakeInfo', label:'ケーキ', x:.13, y:.785, w:.33, h:.100, psm:'6' },
+      { key:'allergy', label:'アレルギー・苦手食材', x:.52, y:.785, w:.35, h:.100, psm:'6' }
+    ]
+  },
   benefit: {
     label: '特典発注依頼書（ハピネスプラン）',
     documentType: 'ケーキ食伝',
@@ -2606,6 +2865,10 @@ const OCR_DOCUMENT_TEMPLATES = {
     ]
   }
 };
+const OCR_CAPTURE_TEMPLATE_KEYS = [
+  'anniversary', 'afternoonTea', 'fruitPlatter', 'bridalTasting',
+  'weddingFinal10', 'weddingGift', 'weddingCake', 'frenchMenu'
+];
     function todayStr(offset = 0) {
   const d = new Date();
 
@@ -4043,9 +4306,6 @@ async function getOcrWorker() {
   if (!window.Tesseract) throw new Error('OCR本体を読み込めませんでした。');
   setOcrProgress('日本語OCR辞書を読み込んでいます。4Gでは初回に時間がかかります…', 0.05);
   ocrWorker = await Tesseract.createWorker('jpn', 1, {
-    workerPath: 'ocr/worker.min.js',
-    corePath: 'ocr/core',
-    langPath: 'ocr/lang',
     logger: message => {
       if (typeof message.progress === 'number') {
         setOcrProgress(message.status || '文字を読み取っています…', message.progress);
@@ -4298,7 +4558,7 @@ function renderOcrResult(result, fileName, index) {
       <div class="item-head">
         <div>
           <div class="item-title">${escapeHtml(fileName)}</div>
-          <div class="meta">自動判別：${escapeHtml(result.documentType)}</div>
+          <div class="meta">指定書類：${escapeHtml(result.documentType)}</div>
         </div>
         <label class="check-pill"><input type="checkbox" class="ocr-result-selected" checked> 登録対象</label>
       </div>
@@ -4359,9 +4619,10 @@ function renderOcrResult(result, fileName, index) {
     </article>`;
 }
 
-function templateOptions(selected = 'benefit') {
-  return Object.entries(OCR_DOCUMENT_TEMPLATES)
-    .map(([key, template]) => `<option value="${key}" ${key === selected ? 'selected' : ''}>${escapeHtml(template.label)}</option>`)
+function templateOptions(selected = selectedCaptureTemplate) {
+  return OCR_CAPTURE_TEMPLATE_KEYS
+    .map(key => [key, OCR_DOCUMENT_TEMPLATES[key]])
+    .map(([key, template]) => `<option value="${key}" ${key === selected ? 'selected' : ''} ${template.calibrated === false ? 'disabled' : ''}>${escapeHtml(template.label)}${template.calibrated === false ? '（基準写真待ち）' : ''}</option>`)
     .join('');
 }
 
@@ -4373,23 +4634,23 @@ function templateOverlay(templateKey) {
     </span>`).join('');
 }
 
-function renderOcrPreparation(files) {
+function renderOcrPreparation(files, fixedTemplateKey = selectedCaptureTemplate) {
   ocrPendingFiles.forEach(item => item.url && URL.revokeObjectURL(item.url));
-  ocrPendingFiles = files.map(file => ({ file, url: URL.createObjectURL(file) }));
+  ocrPendingFiles = files.map(file => ({ file, url: URL.createObjectURL(file), templateKey: fixedTemplateKey }));
   ocrEls.progress.classList.add('hidden');
   ocrEls.results.innerHTML = ocrPendingFiles.map((item, index) => `
     <article class="ocr-result-card ocr-preparation-card" data-file-index="${index}">
       <div class="item-title">${escapeHtml(item.file.name)}</div>
       <div class="field" style="margin-top:10px;">
-        <label class="label">帳票種類を選択</label>
-        <select class="select ocr-template-select">${templateOptions()}</select>
+        <label class="label">指定した帳票種類</label>
+        <select class="select ocr-template-select">${templateOptions(item.templateKey)}</select>
       </div>
       <div class="ocr-template-guide"></div>
       <div class="ocr-preview-wrap">
         <img class="ocr-preview-image" src="${item.url}" alt="選択した帳票">
-        <div class="ocr-preview-overlay">${templateOverlay('benefit')}</div>
+        <div class="ocr-preview-overlay">${templateOverlay(item.templateKey)}</div>
       </div>
-      <div class="helper">緑枠が実際に読み取る範囲です。現在は仮位置のため、ずれがあっても後から調整できます。</div>
+      <div class="helper">緑枠を欄ごとに読み、同時に用紙全体も読み取ります。選択した帳票種類を自動変更することはありません。</div>
       <button type="button" class="btn-dark run-template-ocr" style="width:100%;margin-top:10px;">この帳票を欄ごとに読み取る</button>
     </article>`).join('');
   ocrEls.results.querySelectorAll('.ocr-preparation-card').forEach(card => updateTemplatePreview(card));
@@ -4400,6 +4661,112 @@ function updateTemplatePreview(card) {
   const template = OCR_DOCUMENT_TEMPLATES[key];
   card.querySelector('.ocr-template-guide').innerHTML = `<strong>${escapeHtml(template.orientation)}帳票</strong><br>${escapeHtml(template.guide)}`;
   card.querySelector('.ocr-preview-overlay').innerHTML = templateOverlay(key);
+}
+
+function renderCaptureTypeButtons() {
+  captureEls.typeGrid.innerHTML = OCR_CAPTURE_TEMPLATE_KEYS.map(key => {
+    const template = OCR_DOCUMENT_TEMPLATES[key];
+    const pending = template.calibrated === false;
+    return `<button type="button" class="capture-type-button ${key === selectedCaptureTemplate ? 'active' : ''}" data-capture-template="${key}" ${pending ? 'disabled' : ''}>${escapeHtml(template.label)}${pending ? '<br><small>基準写真待ち</small>' : ''}</button>`;
+  }).join('');
+  updateCaptureTemplateUi();
+}
+
+function updateCaptureTemplateUi() {
+  const template = OCR_DOCUMENT_TEMPLATES[selectedCaptureTemplate];
+  if (!template) return;
+  captureEls.typeGrid.querySelectorAll('.capture-type-button').forEach(button => {
+    button.classList.toggle('active', button.dataset.captureTemplate === selectedCaptureTemplate);
+  });
+  captureEls.stage.classList.toggle('landscape', template.orientation === '横');
+  const calibratedText = template.calibrated ? `実物基準：${template.referenceImage}` : '基準写真待ち';
+  captureEls.guide.innerHTML = `<strong>${escapeHtml(template.label)}・${escapeHtml(template.orientation)}向き</strong><br>${escapeHtml(template.guide)}<br><small>${escapeHtml(calibratedText)}</small>`;
+  captureEls.guideLabel.textContent = `${template.orientation}向き・用紙の四隅を緑の角へ`;
+}
+
+function stopCaptureCamera() {
+  if (captureStream) captureStream.getTracks().forEach(track => track.stop());
+  captureStream = null;
+  if (captureEls.video) captureEls.video.srcObject = null;
+}
+
+async function startCaptureCamera() {
+  stopCaptureCamera();
+  captureEls.status.textContent = 'カメラを起動しています…';
+  captureEls.takeBtn.disabled = true;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    captureEls.status.textContent = 'この環境では画面内カメラを起動できません。「カメラが映らない場合」を使用してください。';
+    return;
+  }
+  try {
+    captureStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } },
+      audio: false
+    });
+    captureEls.video.srcObject = captureStream;
+    await captureEls.video.play();
+    captureEls.status.textContent = '影が入らないよう、用紙の四隅を緑の角へ合わせてください。';
+    captureEls.takeBtn.disabled = false;
+  } catch (error) {
+    captureEls.status.textContent = 'カメラを起動できません。写真から選択するか、下の予備カメラを使用してください。';
+  }
+}
+
+async function openCaptureScreen({ startCamera = true } = {}) {
+  captureEls.modal.classList.remove('hidden');
+  document.body.classList.add('ocr-modal-open');
+  renderCaptureTypeButtons();
+  if (startCamera) await startCaptureCamera();
+  else {
+    stopCaptureCamera();
+    captureEls.status.textContent = '帳票種類を選んでから「写真から選択」を押してください。';
+    captureEls.takeBtn.disabled = true;
+  }
+}
+
+function closeCaptureScreen() {
+  stopCaptureCamera();
+  captureEls.modal.classList.add('hidden');
+  if (ocrEls.modal.classList.contains('hidden')) document.body.classList.remove('ocr-modal-open');
+}
+
+function canvasToJpegFile(canvas, fileName) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => {
+      if (!blob) return reject(new Error('撮影画像を作成できませんでした。'));
+      resolve(new File([blob], fileName, { type: 'image/jpeg', lastModified: Date.now() }));
+    }, 'image/jpeg', .92);
+  });
+}
+
+async function takeDocumentPhoto() {
+  const video = captureEls.video;
+  if (!captureStream || !video.videoWidth || !video.videoHeight) return;
+  captureEls.takeBtn.disabled = true;
+  captureEls.status.textContent = '撮影画像を整えています…';
+  try {
+    const targetAspect = captureEls.stage.clientWidth / captureEls.stage.clientHeight;
+    const sourceAspect = video.videoWidth / video.videoHeight;
+    let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+    if (sourceAspect > targetAspect) {
+      sw = video.videoHeight * targetAspect;
+      sx = (video.videoWidth - sw) / 2;
+    } else {
+      sh = video.videoWidth / targetAspect;
+      sy = (video.videoHeight - sh) / 2;
+    }
+    const portrait = OCR_DOCUMENT_TEMPLATES[selectedCaptureTemplate].orientation !== '横';
+    const canvas = document.createElement('canvas');
+    canvas.width = portrait ? 1800 : 2400;
+    canvas.height = Math.round(canvas.width / targetAspect);
+    canvas.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    const file = await canvasToJpegFile(canvas, `${selectedCaptureTemplate}-${Date.now()}.jpg`);
+    closeCaptureScreen();
+    await processOcrFiles([file], selectedCaptureTemplate);
+  } catch (error) {
+    captureEls.status.textContent = error?.message || '撮影に失敗しました。';
+    captureEls.takeBtn.disabled = false;
+  }
 }
 
 function loadImageSource(file) {
@@ -4439,17 +4806,169 @@ function createFieldCanvas(image, field) {
   return canvas;
 }
 
+function createFullPageCanvas(image) {
+  const maxSide = 2400;
+  const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * ratio));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * ratio));
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
 function parseDateAndTime(text) {
+  return commonPastedDateTime(normalizeOcrText(text));
+}
+
+function firstUsefulLabeledValue(text, labels) {
+  const lines = normalizeOcrText(text).split('\n').map(line => line.trim()).filter(Boolean);
+  return valueAfterLabel(lines, labels).replace(/\s*様\s*$/, '').trim();
+}
+
+function likelyNameFromIdentity(text) {
+  const explicit = firstUsefulLabeledValue(text, ['新郎新婦名','新郎新婦','両家名','お客様名','お客様','予約名','氏名','名前']);
+  if (explicit) return explicit.replace(/[／/]+/g, '・');
+  const lines = normalizeOcrText(text).split('\n').map(line => line.trim()).filter(Boolean);
+  const candidate = lines.find(line =>
+    /[一-龠々ぁ-んァ-ヶA-Za-z]{2,}/.test(line) &&
+    !/年月日|午前|午後|時|分|電話|TEL|アレルギ|人数|会場|商品|ケーキ|予約|受付|担当|婚礼|試食|フルーツ|アフタヌーン/.test(line) &&
+    !/^\d[\d\s/:.-]*$/.test(line)
+  );
+  return (candidate || '').replace(/\s*様.*$/, '').trim();
+}
+
+function firstNumberByLabels(text, labels) {
+  const value = firstUsefulLabeledValue(text, labels);
+  return Number(value.match(/\d{1,4}/)?.[0] || 0);
+}
+
+function cleanRegionValue(text, labels = []) {
   const normalized = normalizeOcrText(text);
-  const dateMatch = normalized.match(/(20\d{2})\D{0,3}(\d{1,2})\D{0,3}(\d{1,2})/);
-  const timeMatch = normalized.match(/(?:^|\D)([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+  if (!normalized) return '';
+  const labeled = labels.length ? firstUsefulLabeledValue(normalized, labels) : '';
+  if (labeled) return labeled;
+  return normalized.split('\n')
+    .map(line => line.replace(new RegExp(`^(?:${labels.join('|')})\\s*[:：/／]?\\s*`), '').trim())
+    .find(line => line && !/^[・/／|｜\-—_\s]+$/.test(line)) || '';
+}
+
+function extractQuantity(text, fallback = 1) {
+  const normalized = normalizeOcrText(text);
+  const explicit = normalized.match(/(?:数量|台数|個数)\s*[:：]?\s*(\d{1,4})/) || normalized.match(/[×xX]\s*(\d{1,4})/);
+  return Math.max(1, Number(explicit?.[1] || fallback));
+}
+
+function extractMoney(text, labels = []) {
+  const normalized = normalizeOcrText(text);
+  const labeled = labels.length ? firstUsefulLabeledValue(normalized, labels) : normalized;
+  return Number(labeled.match(/\d{1,3}(?:,\d{3})+/)?.[0]?.replace(/,/g, '') || 0);
+}
+
+function buildSelectedTemplateResult(template, fieldTexts) {
+  const labelledText = template.fields.map(field => `【${field.label}】\n${normalizeOcrText(fieldTexts[field.key] || '')}`).join('\n\n');
+  const regionText = template.fields.map(field => normalizeOcrText(fieldTexts[field.key] || '')).filter(Boolean).join('\n');
+  const fullText = normalizeOcrText([fieldTexts._fullPage || '', regionText].filter(Boolean).join('\n\n'));
+  const identityText = normalizeOcrText([fieldTexts.identity || '', fieldTexts.dateTime || '', fieldTexts.clientName || '', fullText].join('\n'));
+  const dateTime = parseDateAndTime(identityText);
+  const clientName = likelyNameFromIdentity(fieldTexts.clientName || identityText) || likelyNameFromIdentity(identityText);
+  const venueLabels = ['披露宴会場','受渡','受け渡し','会場','場所'];
+  const venue = cleanRegionValue(fieldTexts.venue || '', venueLabels) || firstUsefulLabeledValue(fullText, venueLabels);
+  const guestRegionNumbers = [...normalizeOcrText(fieldTexts.guestCount || '').matchAll(/\d{1,4}/g)].map(match => Number(match[0]));
+  const guestCount = guestRegionNumbers.length ? guestRegionNumbers[guestRegionNumbers.length - 1] : firstNumberByLabels(fullText, ['合計人数','料理最終数','人数','大人','計']);
+  const sourceForItems = normalizeOcrText([fieldTexts.cakeInfo, fieldTexts.serviceInfo, fieldTexts.items, fieldTexts.food, fieldTexts.menu, fieldTexts.pricing, fieldTexts.gifts, fullText].filter(Boolean).join('\n'));
+  const quantity = extractQuantity(sourceForItems, 1);
+  const sizes = [...new Set([...sourceForItems.matchAll(/(?:9\s*cm|[3-7]\s*号|尺|\d{2,3}\s*(?:cm)?\s*[×xX]\s*\d{2,3}\s*cm)/gi)]
+    .map(match => match[0].replace(/\s+/g, '')))];
+  const allergyText = normalizeOcrText(fieldTexts.allergy || firstUsefulLabeledValue(fullText, ['アレルギー・苦手','アレルギー','苦手食材','苦手','特注']) || '');
+  const restrictions = allergyText || (/アレルギー[\s:：]*(?:無|なし|無し)/.test(fullText) ? 'なし' : '記載なし');
+  const allergyPeople = /^(?:無|なし|無し|記載なし)$/.test(restrictions)
+    ? [] : extractAllergyPeopleFromLines(restrictions.split('\n'));
+  const notesText = normalizeOcrText([
+    fieldTexts.notes, fieldTexts.delivery, fieldTexts.schedule, fieldTexts.food,
+    fieldTexts.menu, fieldTexts.pricing, fieldTexts.cakeInfo, fieldTexts.message,
+    fieldTexts.paymentRoom, fieldTexts.leftNotes, fieldTexts.rightNotes, fieldTexts.gifts
+  ].filter(Boolean).join('\n'));
+  const corrections = [
+    !dateTime.date ? '日付を読み取れませんでした。原本を確認してください。' : '',
+    !clientName ? 'お客様名・両家名を読み取れませんでした。原本を確認してください。' : '',
+    /要確認|判読困難|不明/.test(fullText) ? '要確認・判読困難の記載があります。' : '',
+    restrictions === '記載なし' ? 'アレルギー・苦手食材の記載を確認してください。' : ''
+  ].filter(Boolean);
+
+  if (template.simpleService) {
+    const serviceRegion = normalizeOcrText([fieldTexts.cakeInfo, fieldTexts.serviceInfo].filter(Boolean).join('\n'));
+    const cakeType = firstUsefulLabeledValue(serviceRegion || fullText, ['ケーキ種類','種類','商品','内容']) || template.defaultItemName;
+    const itemName = template.defaultItemType === 'アニバーサリーケーキ' ? cakeType : (firstUsefulLabeledValue(serviceRegion || fullText, ['商品','内容','形式']) || template.defaultItemName);
+    const candle = firstUsefulLabeledValue(fullText, ['ろうそく','ローソク','キャンドル']);
+    const box = firstUsefulLabeledValue(fullText, ['箱']);
+    const message = firstUsefulLabeledValue(fullText, ['ホールケーキメッセージ','プレート文言','メッセージ']);
+    const handoff = firstUsefulLabeledValue(fullText, ['受渡','受け渡し','提供','会場','場所']);
+    const timeBand = dateTime.time ? (Number(dateTime.time.slice(0,2)) < 12 ? '午前' : '午後') : '時刻未定';
+    const extraInfo = [
+      notesText,
+      firstUsefulLabeledValue(fullText, ['金額','料金']) ? `金額：${firstUsefulLabeledValue(fullText, ['金額','料金'])}` : '',
+      firstUsefulLabeledValue(fullText, ['支払','支払方法']) ? `支払：${firstUsefulLabeledValue(fullText, ['支払','支払方法'])}` : '',
+      firstUsefulLabeledValue(fullText, ['Room No.','Room No','部屋番号']) ? `Room No.：${firstUsefulLabeledValue(fullText, ['Room No.','Room No','部屋番号'])}` : ''
+    ].filter(Boolean).join('\n');
+    return {
+      simpleService: true, documentType: template.documentType, targetCategory: template.targetCategory,
+      date: dateTime.date, time: dateTime.time, timeBand, clientName, venue: handoff || venue,
+      handoff: handoff || venue, guestCount, sizes, candle, box, message,
+      cakeType, restrictions, allergy: restrictions, allergyPeople,
+      items: [{ type: template.defaultItemType, name: itemName, quantity }],
+      itemType: template.defaultItemType, itemName, itemQuantity: quantity,
+      extraInfo, corrections, text: fullText
+    };
+  }
+
+  if (template.documentType === '引き菓子食伝') {
+    const parsed = extractGiftSlipFields(fullText);
+    parsed.date ||= dateTime.date;
+    parsed.time ||= dateTime.time;
+    parsed.clientName ||= clientName;
+    parsed.corrections = [...(parsed.corrections || []), ...corrections];
+    parsed.text = fullText;
+    return parsed;
+  }
+
+  const ceremonyMatch = fullText.match(/挙式[^\d]{0,12}([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+  const receptionMatch = fullText.match(/披露宴[^\d]{0,12}([01]?\d|2[0-3])\s*[:時]\s*([0-5]\d)/);
+  const ceremonyTime = ceremonyMatch ? `${String(ceremonyMatch[1]).padStart(2,'0')}:${ceremonyMatch[2]}` : '';
+  const receptionTime = receptionMatch ? `${String(receptionMatch[1]).padStart(2,'0')}:${receptionMatch[2]}` : '';
+  const cakeTierMatch = sourceForItems.match(/([1-3一二三])\s*段/);
+  const tierMap = { '一':'1', '二':'2', '三':'3' };
+  const cakeTier = cakeTierMatch ? `${tierMap[cakeTierMatch[1]] || cakeTierMatch[1]}段` : '要確認';
+  const cakeNameMatch = sourceForItems.match(/(?:オリジナル)?(?:丸|角)?(?:ショート|生ケーキ|チョコ(?:レート)?ケーキ?)(?:\s*[1-3一二三]\s*段)?/);
+  const cakeType = cakeNameMatch?.[0] || (template.documentType === 'ケーキ食伝' ? 'ウェディングケーキ' : '');
+  const coursePrice = extractMoney(fieldTexts.pricing || fieldTexts.food || fullText, ['コース料金','料理料金','料理単価','フード']);
+  const cakePrice = extractMoney(fieldTexts.cakeInfo || fullText, ['ケーキ料金','ケーキ金額','ケーキ欄']);
+  const items = [];
+  if (template.documentType === 'ケーキ食伝' || cakeType) {
+    items.push({ type:'ウエディングケーキ', name:[cakeType, cakeTier !== '要確認' ? cakeTier : ''].filter(Boolean).join(' '), quantity });
+  }
+  const dessertLine = firstUsefulLabeledValue(fullText, ['デザート']);
+  if (dessertLine) items.push({ type:'皿盛りデザート', name:dessertLine, quantity:guestCount || 1 });
+  if (!items.length) items.push({ type:'その他', name:template.label, quantity:1 });
+  if (template.documentType === 'ケーキ食伝' && cakeTier === '要確認') corrections.push('ウェディングケーキの段数を確認してください。');
   return {
-    date: dateMatch ? `${dateMatch[1]}-${String(dateMatch[2]).padStart(2,'0')}-${String(dateMatch[3]).padStart(2,'0')}` : '',
-    time: timeMatch ? `${String(timeMatch[1]).padStart(2,'0')}:${timeMatch[2]}` : ''
+    simpleWedding: true, documentType: template.documentType, targetCategory:'婚礼',
+    date: dateTime.date, time: receptionTime || dateTime.time || ceremonyTime,
+    ceremonyTime, receptionTime, clientName, venue, guestCount, coursePrice, cakePrice,
+    cakeTier, cakeType, sizes, allergy: restrictions, allergyPeople, children: [],
+    cakeCutting: /ケーキカット[^\n]{0,12}(?:有|あり)/.test(fullText),
+    firstBite: /ファーストバイト[^\n]{0,12}(?:有|あり)/.test(fullText),
+    items, itemType: items[0].type, itemName: items[0].name, itemQuantity: items[0].quantity,
+    extraInfo: notesText || fullText, corrections, text: fullText
   };
 }
 
 function buildTemplateResult(template, fieldTexts) {
+  if (OCR_CAPTURE_TEMPLATE_KEYS.some(key => OCR_DOCUMENT_TEMPLATES[key] === template)) {
+    return buildSelectedTemplateResult(template, fieldTexts);
+  }
   if (template.documentType === '婚礼一覧表') {
     return extractWeddingScheduleFields(fieldTexts.scheduleTable || '');
   }
@@ -4483,13 +5002,21 @@ async function runTemplateOcr(card) {
   if (!pending) return;
   const templateKey = card.querySelector('.ocr-template-select').value;
   const template = OCR_DOCUMENT_TEMPLATES[templateKey];
+  if (template.calibrated === false) {
+    alert('この帳票は基準写真待ちのため、まだ撮影読取を使用できません。');
+    return;
+  }
   card.querySelector('.run-template-ocr').disabled = true;
   try {
     const [worker, image] = await Promise.all([getOcrWorker(), loadImageSource(pending.file)]);
     const fieldTexts = {};
+    setOcrProgress('用紙全体と欄外の追記を読み取っています（1段階目）', 0.05);
+    await worker.setParameters({ tessedit_pageseg_mode: '6' });
+    const fullPage = await worker.recognize(createFullPageCanvas(image));
+    fieldTexts._fullPage = fullPage.data.text || '';
     for (let index = 0; index < template.fields.length; index += 1) {
       const field = template.fields[index];
-      setOcrProgress(`${field.label}を読み取っています（${index + 1}/${template.fields.length}）`, index / template.fields.length);
+      setOcrProgress(`${field.label}を読み取っています（${index + 1}/${template.fields.length}）`, (index + 1) / (template.fields.length + 1));
       await worker.setParameters({ tessedit_pageseg_mode: field.psm || '7' });
       const canvas = createFieldCanvas(image, field);
       const recognized = await worker.recognize(canvas);
@@ -4505,11 +5032,12 @@ async function runTemplateOcr(card) {
   }
 }
 
-async function processOcrFiles(files) {
+async function processOcrFiles(files, fixedTemplateKey = selectedCaptureTemplate) {
   if (!files.length) return;
   ocrEls.modal.classList.remove('hidden');
   document.body.classList.add('ocr-modal-open');
-  renderOcrPreparation(files);
+  ocrEls.pasteArea.classList.add('hidden');
+  renderOcrPreparation(files, fixedTemplateKey);
   ocrEls.cameraInput.value = '';
   ocrEls.galleryInput.value = '';
 }
@@ -7030,10 +7558,28 @@ if (!isWeddingOrAnniversaryCake) {
     ocrEls.readClipboardBtn.addEventListener('click', readClipboardText);
     ocrEls.analyzePastedTextBtn.addEventListener('click', analyzePastedText);
     ocrEls.copySimpleTemplateBtn?.addEventListener('click', copySimpleImportTemplate);
-    ocrEls.cameraBtn.addEventListener('click', () => ocrEls.cameraInput.click());
-    ocrEls.galleryBtn.addEventListener('click', () => ocrEls.galleryInput.click());
-    ocrEls.cameraInput.addEventListener('change', event => processOcrFiles([...event.target.files]));
-    ocrEls.galleryInput.addEventListener('change', event => processOcrFiles([...event.target.files]));
+    ocrEls.cameraBtn.addEventListener('click', () => openCaptureScreen({ startCamera: true }));
+    ocrEls.galleryBtn.addEventListener('click', () => openCaptureScreen({ startCamera: false }));
+    ocrEls.cameraInput.addEventListener('change', event => {
+      const files = [...event.target.files];
+      closeCaptureScreen();
+      processOcrFiles(files, selectedCaptureTemplate);
+    });
+    ocrEls.galleryInput.addEventListener('change', event => {
+      const files = [...event.target.files];
+      closeCaptureScreen();
+      processOcrFiles(files, selectedCaptureTemplate);
+    });
+    captureEls.closeBtn.addEventListener('click', closeCaptureScreen);
+    captureEls.takeBtn.addEventListener('click', takeDocumentPhoto);
+    captureEls.galleryBtn.addEventListener('click', () => ocrEls.galleryInput.click());
+    captureEls.fallbackBtn.addEventListener('click', () => ocrEls.cameraInput.click());
+    captureEls.typeGrid.addEventListener('click', event => {
+      const button = event.target.closest('[data-capture-template]');
+      if (!button) return;
+      selectedCaptureTemplate = button.dataset.captureTemplate;
+      updateCaptureTemplateUi();
+    });
     ocrEls.closeBtn.addEventListener('click', () => closeOcrModal({ clear: true }));
     ocrEls.results.addEventListener('change', event => {
       if (!event.target.matches('.ocr-template-select')) return;
